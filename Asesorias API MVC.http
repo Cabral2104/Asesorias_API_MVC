@@ -1,0 +1,6 @@
+@Asesorias_API_MVC_HostAddress = http://localhost:5179
+
+GET {{Asesorias_API_MVC_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

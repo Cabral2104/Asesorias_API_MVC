@@ -19,38 +19,64 @@ namespace Asesorias_API_MVC.Data
         public DbSet<SolicitudDeAyuda> SolicitudesDeAyuda { get; set; }
 
 
-        // --- INTERCEPTOR DE BORRADO LÓGICO ---
+        // --- INTERCEPTOR AUTOMÁTICO DE BORRADO Y AUDITORÍA ---
 
-        // Este método privado hace el trabajo sucio
-        private void HandleSoftDelete()
+        private void OnBeforeSaveChanges()
         {
-            // Obtener todas las entidades que están siendo 'Borradas'
-            // y que implementan nuestra interfaz ISoftDeletable
-            var entries = ChangeTracker.Entries()
-                .Where(e => e.Entity is ISoftDeletable && e.State == EntityState.Deleted);
+            var now = DateTime.UtcNow; // Obtenemos la fecha una sola vez
 
-            // Iterar sobre cada una
+            // Obtenemos todas las entradas que están siendo rastreadas por EF Core
+            var entries = ChangeTracker.Entries();
+
             foreach (var entry in entries)
             {
-                // 1. Cambiar su estado de 'Borrado' a 'Modificado'
-                entry.State = EntityState.Modified;
+                // ---- MANEJO DE AUDITORÍA (IAuditable) ----
+                if (entry.Entity is IAuditable auditableEntity)
+                {
+                    switch (entry.State)
+                    {
+                        // Si la entidad se está AÑADIENDO
+                        case EntityState.Added:
+                            auditableEntity.CreatedAt = now;
+                            auditableEntity.ModifiedAt = now;
+                            break;
 
-                // 2. Poner la propiedad IsActive en 'false'
-                ((ISoftDeletable)entry.Entity).IsActive = false;
+                        // Si la entidad se está MODIFICANDO
+                        case EntityState.Modified:
+                            auditableEntity.ModifiedAt = now;
+                            break;
+                    }
+                }
+
+                // ---- MANEJO DE BORRADO LÓGICO (ISoftDeletable) ----
+                if (entry.Entity is ISoftDeletable softDeletableEntity && entry.State == EntityState.Deleted)
+                {
+                    // 1. Cambiar su estado de 'Borrado' a 'Modificado'
+                    entry.State = EntityState.Modified;
+
+                    // 2. Poner la propiedad IsActive en 'false'
+                    softDeletableEntity.IsActive = false;
+
+                    // 3. (Opcional pero bueno) Actualizar ModifiedAt al borrar lógicamente
+                    if (entry.Entity is IAuditable auditableOnDelete)
+                    {
+                        auditableOnDelete.ModifiedAt = now;
+                    }
+                }
             }
         }
 
         // Sobrescribir el método SaveChanges() síncrono
         public override int SaveChanges()
         {
-            HandleSoftDelete(); // Llamar a nuestro interceptor
+            OnBeforeSaveChanges(); // Llamar a nuestro interceptor
             return base.SaveChanges();
         }
 
         // Sobrescribir el método SaveChangesAsync() asíncrono
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            HandleSoftDelete(); // Llamar a nuestro interceptor
+            OnBeforeSaveChanges(); // Llamar a nuestro interceptor
             return base.SaveChangesAsync(cancellationToken);
         }
 
@@ -61,9 +87,7 @@ namespace Asesorias_API_MVC.Data
         {
             base.OnModelCreating(builder);
 
-            // --- APLICAR FILTROS GLOBALES DE CONSULTA ---
-            // Esto hace que CUALQUIER consulta (ToList(), FindAsync(), etc.)
-            // ignore automáticamente los registros con IsActive = false.
+            // --- APLICAR FILTROS GLOBALES DE CONSULTA (Solo IsActive) ---
             builder.Entity<Usuario>().HasQueryFilter(e => e.IsActive);
             builder.Entity<Asesor>().HasQueryFilter(e => e.IsActive);
             builder.Entity<Curso>().HasQueryFilter(e => e.IsActive);
@@ -71,23 +95,18 @@ namespace Asesorias_API_MVC.Data
             builder.Entity<Inscripcion>().HasQueryFilter(e => e.IsActive);
             builder.Entity<SolicitudDeAyuda>().HasQueryFilter(e => e.IsActive);
 
-            // --- FIN DE FILTROS GLOBALES ---
-
-
             // --- CONFIGURACIÓN DE RELACIONES (CON BORRADO SEGURO) ---
 
-            // Relación 1-a-1 Usuario -> Asesor
             builder.Entity<Asesor>()
                 .HasOne(a => a.Usuario)
                 .WithOne(u => u.Asesor)
                 .HasForeignKey<Asesor>(a => a.UsuarioId);
 
-            // Relaciones de SolicitudDeAyuda
             builder.Entity<SolicitudDeAyuda>()
                 .HasOne(s => s.Estudiante)
                 .WithMany(u => u.Solicitudes)
                 .HasForeignKey(s => s.EstudianteId)
-                .OnDelete(DeleteBehavior.Restrict); // No permitir borrado físico
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<SolicitudDeAyuda>()
                 .HasOne(s => s.AsesorAsignado)
@@ -95,18 +114,17 @@ namespace Asesorias_API_MVC.Data
                 .HasForeignKey(s => s.AsesorAsignadoId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
 
-            // Relaciones de Inscripcion
             builder.Entity<Inscripcion>()
                 .HasOne(i => i.Estudiante)
                 .WithMany(u => u.Inscripciones)
                 .HasForeignKey(i => i.EstudianteId)
-                .OnDelete(DeleteBehavior.Restrict); // No permitir borrado físico
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Inscripcion>()
                 .HasOne(i => i.Curso)
                 .WithMany(c => c.Inscripciones)
                 .HasForeignKey(i => i.CursoId)
-                .OnDelete(DeleteBehavior.Restrict); // No permitir borrado físico
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

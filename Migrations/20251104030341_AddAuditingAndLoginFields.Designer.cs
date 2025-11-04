@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Asesorias_API_MVC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251102050228_AddSoftDeleteLogic")]
-    partial class AddSoftDeleteLogic
+    [Migration("20251104030341_AddAuditingAndLoginFields")]
+    partial class AddAuditingAndLoginFields
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,6 +29,9 @@ namespace Asesorias_API_MVC.Migrations
                 {
                     b.Property<string>("UsuarioId")
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
@@ -47,11 +50,11 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<bool>("EstaAprobado")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("UsuarioId");
 
@@ -73,6 +76,9 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<decimal>("Costo")
                         .HasColumnType("decimal(10, 2)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -81,11 +87,11 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<bool>("EstaPublicado")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Titulo")
                         .IsRequired()
@@ -107,6 +113,9 @@ namespace Asesorias_API_MVC.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InscripcionId"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("CursoId")
                         .HasColumnType("int");
 
@@ -114,11 +123,11 @@ namespace Asesorias_API_MVC.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<DateTime>("FechaInscripcion")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("InscripcionId");
 
@@ -141,11 +150,17 @@ namespace Asesorias_API_MVC.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("CursoId")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("Orden")
                         .HasColumnType("int");
@@ -173,6 +188,9 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<string>("AsesorAsignadoId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -187,11 +205,11 @@ namespace Asesorias_API_MVC.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Tema")
                         .IsRequired()
@@ -219,6 +237,9 @@ namespace Asesorias_API_MVC.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -229,11 +250,17 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("LastLogin")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)

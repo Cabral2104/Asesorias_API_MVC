@@ -14,6 +14,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CONFIGURAR SERVICIOS ---
 
+// --- NUEVO: Configurar CORS ---
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        builder =>
+        {
+            builder.AllowAnyOrigin()    // Permitir cualquier origen
+                   .AllowAnyMethod()    // Permitir cualquier método (GET, POST, etc.)
+                   .AllowAnyHeader();   // Permitir cualquier cabecera
+        });
+});
+
 // Obtener la cadena de conexión
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -53,13 +65,41 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // 1. Definir la seguridad (Bearer Token)
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Por favor, introduce tu token JWT con el prefijo 'Bearer ' en el campo."
+    });
+
+    // 2. Hacer que Swagger aplique este requisito a todos los endpoints
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 // --- ESTA ES LA LÍNEA DEL PASO 4 ---
 // Registra nuestro "Chef" (AuthService) cada vez que alguien pida el "Contrato" (IAuthService)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-
+builder.Services.AddScoped<IAsesorService, AsesorService>();
 // --- 2. CONSTRUIR LA APP ---
 var app = builder.Build();
 
@@ -87,9 +127,15 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// --- NUEVO: Usar la política CORS ---
+app.UseCors("AllowAll");
+
+app.UseStaticFiles();
+
 // Habilitar Autenticación y Autorización
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 

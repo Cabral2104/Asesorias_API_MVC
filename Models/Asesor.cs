@@ -16,14 +16,32 @@ namespace Asesorias_API_MVC.Models
         [MaxLength(500)]
         public string Descripcion { get; set; }
 
-        // --- CAMPOS NUEVOS AÑADIDOS ---
-        [MaxLength(1000)]
-        public string Estudios { get; set; }
+        // ========== INFORMACIÓN ACADÉMICA (CAMPOS NUEVOS) ==========
+        [Required]
+        [MaxLength(100)]
+        public string NivelEstudios { get; set; }
+
+        [Required]
+        [MaxLength(150)]
+        public string InstitucionEducativa { get; set; }
+
+        [Required]
+        [MaxLength(150)]
+        public string CampoEstudio { get; set; }
+
+        public int? AnioGraduacion { get; set; } // Opcional
+
+        // ========== EXPERIENCIA PROFESIONAL (CAMPOS NUEVOS) ==========
+        [Required]
+        public int AniosExperiencia { get; set; }
 
         [MaxLength(1000)]
-        public string Experiencia { get; set; }
-        // --- FIN DE CAMPOS NUEVOS ---
+        public string ExperienciaLaboral { get; set; } // Opcional
 
+        [MaxLength(500)]
+        public string Certificaciones { get; set; } // Opcional
+
+        // ========== DOCUMENTO Y ESTADO ==========
         public string DocumentoVerificacionUrl { get; set; }
 
         public bool EstaAprobado { get; set; } = false;

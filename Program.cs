@@ -100,6 +100,8 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddScoped<IAsesorService, AsesorService>();
+
+builder.Services.AddScoped<IAdminService, AdminService>();
 // --- 2. CONSTRUIR LA APP ---
 var app = builder.Build();
 

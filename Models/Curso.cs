@@ -4,31 +4,30 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Asesorias_API_MVC.Models
 {
-    public class Curso : ISoftDeletable
+    public class Curso : ISoftDeletable, IAuditable
     {
         [Key]
         public int CursoId { get; set; }
-
         [Required]
         [MaxLength(150)]
         public string Titulo { get; set; }
-
         [MaxLength(1000)]
         public string Descripcion { get; set; }
-
         [Required]
         [Column(TypeName = "decimal(10, 2)")]
         public decimal Costo { get; set; }
-
         public bool EstaPublicado { get; set; } = false;
 
-        public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+        // Eliminamos "FechaCreacion"
+        // public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
         [Required]
         public string AsesorId { get; set; }
 
-        // --- Propiedad de Borrado Lógico ---
-        public bool IsActive { get; set; } = true; // <-- AÑADIR ESTA LÍNEA
+        // --- Propiedades de Borrado Lógico y Auditoría ---
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; }
+        public DateTime ModifiedAt { get; set; }
 
         // --- Propiedades de Navegación ---
         [ForeignKey("AsesorId")]

@@ -105,6 +105,8 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 
 builder.Services.AddScoped<ICursoService, CursoService>();
 
+builder.Services.AddScoped<ILeccionService, LeccionService>();
+
 // --- 2. CONSTRUIR LA APP ---
 var app = builder.Build();
 

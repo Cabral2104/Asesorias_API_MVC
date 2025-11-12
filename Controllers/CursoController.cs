@@ -121,5 +121,27 @@ namespace Asesorias_API_MVC.Controllers
 
             return Ok(result);
         }
+
+        // --- Endpoint 6: Eliminar mi Curso (SOLO ASESORES) ---
+        // DELETE: /api/curso/eliminar/{cursoId}
+        [HttpDelete("eliminar/{cursoId}")]
+        [Authorize(Roles = "Asesor")] // ¡Solo Asesores Aprobados!
+        public async Task<IActionResult> DeleteCurso(int cursoId)
+        {
+            var asesorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(asesorId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _cursoService.DeleteCursoAsync(cursoId, asesorId);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
     }
 }

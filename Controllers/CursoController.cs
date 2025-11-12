@@ -1,4 +1,5 @@
 ﻿using Asesorias_API_MVC.Models.Dtos;
+using Asesorias_API_MVC.Services.Implementations;
 using Asesorias_API_MVC.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +12,15 @@ namespace Asesorias_API_MVC.Controllers
     public class CursoController : ControllerBase
     {
         private readonly ICursoService _cursoService;
+        private readonly IEstudianteService _estudianteService;
+        private readonly ICalificacionService _calificacionService;
 
-        public CursoController(ICursoService cursoService)
+        public CursoController(ICursoService cursoService, IEstudianteService estudianteService, ICalificacionService calificacionService)
         {
             _cursoService = cursoService;
+            _estudianteService = estudianteService;
+            _estudianteService = estudianteService;
+            _calificacionService = calificacionService;
         }
 
         // --- Endpoint 1: Ver Catálogo (PÚBLICO) ---
@@ -139,6 +145,55 @@ namespace Asesorias_API_MVC.Controllers
             if (!result.IsSuccess)
             {
                 return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+
+        // Endpoint 7: Inscribirse a un Curso (SOLO ESTUDIANTES)
+        // POST: /api/curso/{cursoId}/inscribirme
+        [HttpPost("{cursoId}/inscribirme")]
+        [Authorize(Roles = "Estudiante")] // ¡Solo Estudiantes!
+        public async Task<IActionResult> InscribirseACurso(int cursoId)
+        {
+            var estudianteId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(estudianteId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _estudianteService.InscribirseACursoAsync(cursoId, estudianteId);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(result); // Ej: "Ya estás inscrito"
+            }
+
+            return Ok(result);
+        }
+
+        // Endpoint 8: Calificar un Curso (SOLO ESTUDIANTES)
+        // POST: /api/curso/{cursoId}/calificar
+        [HttpPost("{cursoId}/calificar")]
+        [Authorize(Roles = "Estudiante")] // ¡Solo Estudiantes!
+        public async Task<IActionResult> CalificarCurso(int cursoId, [FromBody] CalificacionCreateDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var estudianteId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(estudianteId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _calificacionService.AddCalificacionAsync(cursoId, estudianteId, dto);
+
+            if (!result.IsSuccess)
+            {
+                return BadRequest(result); // Ej: "Ya calificaste este curso"
             }
 
             return Ok(result);

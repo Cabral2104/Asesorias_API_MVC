@@ -26,12 +26,19 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Obtener la cadena de conexión
+// Obtener la cadena de conexión con SQLServer
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Configurar el DbContext
+// Configurar el DbContext de SQLServer
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+// Obtener la cadena de conexión (PostgreSQL)
+var analyticsConnectionString = builder.Configuration.GetConnectionString("AnalyticsConnection");
+
+// Configurar el 2do DbContext (PostgreSQL)
+builder.Services.AddDbContext<AnalyticsDbContext>(options =>
+    options.UseNpgsql(analyticsConnectionString));
 
 // Configurar Identity
 builder.Services.AddIdentity<Usuario, IdentityRole>()
@@ -106,6 +113,10 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<ICursoService, CursoService>();
 
 builder.Services.AddScoped<ILeccionService, LeccionService>();
+
+builder.Services.AddScoped<IEstudianteService, EstudianteService>();
+
+builder.Services.AddScoped<ICalificacionService, CalificacionService>();
 
 // --- 2. CONSTRUIR LA APP ---
 var app = builder.Build();

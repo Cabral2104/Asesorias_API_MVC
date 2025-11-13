@@ -12,12 +12,20 @@ namespace Asesorias_API_MVC.Data
 
         public DbSet<Calificacion> Calificaciones { get; set; }
 
+        public DbSet<HistorialPago> HistorialDePagos { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Mapear el nombre de la tabla
             modelBuilder.Entity<Calificacion>().ToTable("Calificaciones");
+
+            // --- MAPEO EXPLÍCITO DE LA TABLA ACTUALIZADA ---
+            modelBuilder.Entity<HistorialPago>(entity =>
+            {
+                entity.ToTable("HistorialDePagos");
+                // Definimos la precisión del decimal, buena práctica
+                entity.Property(e => e.Monto).HasColumnType("decimal(10, 2)");
+            });
         }
     }
 }

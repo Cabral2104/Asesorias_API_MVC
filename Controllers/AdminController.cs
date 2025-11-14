@@ -44,5 +44,22 @@ namespace Asesorias_API_MVC.Controllers
             }
             return Ok(result);
         }
+
+        // --- ENDPOINTS DEL DASHBOARD ---
+        // GET: /api/Admin/dashboard-stats
+        [HttpGet("dashboard-stats")]
+        public async Task<IActionResult> GetDashboardStats()
+        {
+            var stats = await _adminService.GetDashboardStatsAsync();
+            return Ok(stats);
+        }
+
+        // GET: /api/Admin/dashboard-asesores
+        [HttpGet("dashboard-asesores")]
+        public async Task<IActionResult> GetAsesorDashboard()
+        {
+            var stats = await _adminService.GetAsesorDashboardAsync();
+            return Ok(stats);
+        }
     }
 }

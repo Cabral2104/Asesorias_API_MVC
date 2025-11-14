@@ -1,4 +1,5 @@
 ﻿using Asesorias_API_MVC.Models; // IMPORTANTE: Apunta a nuestra carpeta de Modelos
+using Asesorias_API_MVC.Models.Dtos;
 using Asesorias_API_MVC.Models.Interfaces;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -125,6 +126,13 @@ namespace Asesorias_API_MVC.Data
                 .WithMany(c => c.Inscripciones)
                 .HasForeignKey(i => i.CursoId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<AsesorRatingDto>(e =>
+            {
+                e.HasNoKey(); // ¡Importante! No es una tabla real
+                // Le decimos qué precisión usar para el dinero
+                e.Property(p => p.IngresosGenerados).HasPrecision(18, 2);
+            });
         }
     }
 }

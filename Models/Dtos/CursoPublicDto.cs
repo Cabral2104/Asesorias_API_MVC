@@ -7,6 +7,8 @@
         public string Descripcion { get; set; }
         public decimal Costo { get; set; }
 
+        public bool EstaPublicado { get; set; }
+
         // Datos del Asesor
         public string AsesorId { get; set; }
         public string AsesorNombre { get; set; } // ¡Importante para el catálogo!

@@ -144,5 +144,38 @@ namespace Asesorias_API_MVC.Services.Implementations
 
             return new GenericResponseDto { IsSuccess = true, Message = "Curso actualizado exitosamente." };
         }
+
+        public async Task<GenericResponseDto> DeleteCursoAsync(int cursoId, string asesorId)
+        {
+            var curso = await _context.Cursos
+                .Include(c => c.Lecciones) // ¡IMPORTANTE: Cargar las lecciones hijas!
+                .FirstOrDefaultAsync(c => c.CursoId == cursoId && c.IsActive);
+
+            if (curso == null)
+            {
+                return new GenericResponseDto { IsSuccess = false, Message = "El curso no existe." };
+            }
+
+            // --- ¡VERIFICACIÓN DE PROPIEDAD! ---
+            if (curso.AsesorId != asesorId)
+            {
+                return new GenericResponseDto { IsSuccess = false, Message = "No tienes permiso para eliminar este curso." };
+            }
+
+            // 1. Borrado lógico del Curso padre
+            // (Nuestro DbContext lo interceptará y pondrá IsActive = false)
+            _context.Cursos.Remove(curso);
+
+            // 2. Borrado lógico en cascada de las Lecciones hijas
+            foreach (var leccion in curso.Lecciones)
+            {
+                // (Nuestro DbContext también interceptará cada uno de estos)
+                _context.Lecciones.Remove(leccion);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return new GenericResponseDto { IsSuccess = true, Message = "Curso y todas sus lecciones han sido eliminados (desactivados)." };
+        }
     }
 }

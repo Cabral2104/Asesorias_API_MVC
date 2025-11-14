@@ -22,5 +22,7 @@ namespace Asesorias_API_MVC.Services.Interfaces
         // Tarea para que un asesor actualice su curso
         // Reutilizamos el DTO de creación, ya que tiene los mismos campos
         Task<GenericResponseDto> UpdateCursoAsync(int cursoId, CursoCreateDto dto, string asesorId);
+
+        Task<GenericResponseDto> DeleteCursoAsync(int cursoId, string asesorId);
     }
 }

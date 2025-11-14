@@ -6,5 +6,7 @@ namespace Asesorias_API_MVC.Services.Interfaces
     {
         Task<IEnumerable<SolicitudAsesorDto>> GetPendingAsesorApplicationsAsync();
         Task<GenericResponseDto> ReviewAsesorApplicationAsync(string userId, bool approve);
+        Task<DashboardStatsDto> GetDashboardStatsAsync();
+        Task<IEnumerable<AsesorRatingDto>> GetAsesorDashboardAsync();
     }
 }

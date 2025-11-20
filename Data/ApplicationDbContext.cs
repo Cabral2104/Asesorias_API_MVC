@@ -18,6 +18,7 @@ namespace Asesorias_API_MVC.Data
         public DbSet<Leccion> Lecciones { get; set; }
         public DbSet<Inscripcion> Inscripciones { get; set; }
         public DbSet<SolicitudDeAyuda> SolicitudesDeAyuda { get; set; }
+        public DbSet<OfertaSolicitud> OfertasSolicitud { get; set; }
 
 
         // --- INTERCEPTOR AUTOMÁTICO DE BORRADO Y AUDITORÍA ---
@@ -95,6 +96,7 @@ namespace Asesorias_API_MVC.Data
             builder.Entity<Leccion>().HasQueryFilter(e => e.IsActive);
             builder.Entity<Inscripcion>().HasQueryFilter(e => e.IsActive);
             builder.Entity<SolicitudDeAyuda>().HasQueryFilter(e => e.IsActive);
+            builder.Entity<OfertaSolicitud>().HasQueryFilter(e => e.IsActive);
 
             // --- CONFIGURACIÓN DE RELACIONES (CON BORRADO SEGURO) ---
 
@@ -127,6 +129,20 @@ namespace Asesorias_API_MVC.Data
                 .HasForeignKey(i => i.CursoId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // --- NUEVAS RELACIONES (Ofertas) ---
+            builder.Entity<OfertaSolicitud>()
+                .HasOne(o => o.Solicitud)
+                .WithMany(s => s.Ofertas)
+                .HasForeignKey(o => o.SolicitudId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<OfertaSolicitud>()
+                .HasOne(o => o.Asesor)
+                .WithMany()
+                .HasForeignKey(o => o.AsesorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // DTOs sin llave (para el Dashboard)
             builder.Entity<AsesorRatingDto>(e =>
             {
                 e.HasNoKey(); // ¡Importante! No es una tabla real

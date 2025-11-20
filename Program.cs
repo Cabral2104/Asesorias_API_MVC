@@ -118,6 +118,8 @@ builder.Services.AddScoped<IEstudianteService, EstudianteService>();
 
 builder.Services.AddScoped<ICalificacionService, CalificacionService>();
 
+builder.Services.AddScoped<ISolicitudService, SolicitudService>();
+
 // --- 2. CONSTRUIR LA APP ---
 var app = builder.Build();
 

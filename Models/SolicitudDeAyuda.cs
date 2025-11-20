@@ -36,5 +36,8 @@ namespace Asesorias_API_MVC.Models
 
         [ForeignKey("AsesorAsignadoId")]
         public virtual Asesor? AsesorAsignado { get; set; }
+
+        // --- Relación con las ofertas ---
+        public virtual ICollection<OfertaSolicitud> Ofertas { get; set; }
     }
 }

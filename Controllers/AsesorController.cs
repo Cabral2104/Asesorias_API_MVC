@@ -4,6 +4,9 @@ using Asesorias_API_MVC.Models.Dtos;
 using Asesorias_API_MVC.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.Features;
+using System.Text.Json;
+using System.IO;
 
 namespace Asesorias_API_MVC.Controllers
 {
@@ -20,25 +23,61 @@ namespace Asesorias_API_MVC.Controllers
         }
 
         [HttpPost("apply")]
-        [Consumes("multipart/form-data")] // IMPORTANTE: Aceptamos archivos
-        public async Task<IActionResult> ApplyToBeAsesor([FromForm] AsesorApplyDto dto)
+        [DisableRequestSizeLimit] // Desactivar límite de tamaño para este endpoint
+        public async Task<IActionResult> ApplyToBeAsesor()
         {
-            // Validación manual del archivo
-            if (dto.DocumentoVerificacion == null || dto.DocumentoVerificacion.Length == 0)
+            // 1. LECTURA MANUAL DEL CUERPO (Evita el crash del ModelBinder)
+            string requestBody = "";
+            try
             {
-                return BadRequest(new { Message = "Debes subir tu CV en formato PDF o DOCX." });
+                using (var reader = new StreamReader(Request.Body))
+                {
+                    requestBody = await reader.ReadToEndAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error leyendo datos: {ex.Message}");
             }
 
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            // 2. DESERIALIZACIÓN MANUAL
+            AsesorApplyDto dto;
+            try
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                dto = JsonSerializer.Deserialize<AsesorApplyDto>(requestBody, options);
+            }
+            catch (Exception)
+            {
+                return BadRequest("El formato de los datos enviados no es válido.");
+            }
 
+            // 3. VALIDACIONES DE NEGOCIO
+            if (dto == null) return BadRequest("No se recibieron datos.");
+
+            if (string.IsNullOrEmpty(dto.ArchivoBase64))
+            {
+                return BadRequest(new { IsSuccess = false, Message = "Debes adjuntar tu CV." });
+            }
+
+            // 4. OBTENER USUARIO
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var result = await _asesorService.ApplyToBeAsesorAsync(dto, userId);
+            // 5. LLAMAR AL SERVICIO
+            try
+            {
+                var result = await _asesorService.ApplyToBeAsesorAsync(dto, userId);
 
-            if (!result.IsSuccess) return BadRequest(result);
+                if (!result.IsSuccess) return BadRequest(result);
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error interno: {ex.Message}");
+                return StatusCode(500, new { IsSuccess = false, Message = "Error interno del servidor." });
+            }
         }
     }
 }

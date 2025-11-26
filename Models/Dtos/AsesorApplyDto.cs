@@ -24,25 +24,22 @@ namespace Asesorias_API_MVC.Models.Dtos
         [MaxLength(150)]
         public string CampoEstudio { get; set; }
 
-        [Range(1900, 3000, ErrorMessage = "El año de graduación no es válido")]
-        public int? AnioGraduacion { get; set; } // Opcional
+        public int? AnioGraduacion { get; set; }
 
         // ========== EXPERIENCIA PROFESIONAL ==========
         [Required(ErrorMessage = "Los años de experiencia son obligatorios")]
-        [Range(0, 50, ErrorMessage = "Los años de experiencia deben estar entre 0 y 50")]
         public int AniosExperiencia { get; set; }
 
         [MaxLength(1000)]
-        public string ExperienciaLaboral { get; set; } // Opcional
+        public string ExperienciaLaboral { get; set; }
 
         [MaxLength(500)]
-        public string Certificaciones { get; set; } // Opcional
+        public string Certificaciones { get; set; }
 
-        //[Required(ErrorMessage = "El enlace a tu CV (PDF) es requerido.")]
-        //[Url(ErrorMessage = "Debes ingresar una URL válida (ej. https://...)")]
-        //public string DocumentoVerificacionUrl { get; set; }
-
-        // --- CAMBIO: Volvemos a IFormFile (SIN Required para evitar crash del binder) ---
-        public IFormFile DocumentoVerificacion { get; set; }
+        // SIN [Required] aquí. Lo validaremos en el Controlador.
+        // Esto evita que el Binder falle si el archivo viene en partes o corrupto.
+        // NUEVOS CAMPOS PARA EL ARCHIVO (COMO TEXTO)
+        public string? ArchivoBase64 { get; set; } // Aquí viene el contenido del PDF
+        public string? NombreArchivo { get; set; } // Ej: "mi_cv.pdf"
     }
 }

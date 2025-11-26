@@ -14,16 +14,18 @@ using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. CONFIGURAR SERVICIOS ---
+// --- AGREGAR ESTO AL INICIO ---
 
-// Permitir subida de archivos de hasta 50 MB
-builder.Services.Configure<KestrelServerOptions>(options =>
+// 1. Configurar Kestrel (para cuando ejecutas sin IIS)
+builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
 {
-    options.Limits.MaxRequestBodySize = 52428800; // 50 MB
+    options.Limits.MaxRequestBodySize = 104857600; // 100 MB
 });
-builder.Services.Configure<FormOptions>(options =>
+
+// 2. Configurar el límite de formularios (aunque usamos JSON, es bueno tenerlo)
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 52428800;
+    options.MultipartBodyLengthLimit = 104857600; // 100 MB
 });
 
 // --- NUEVO: Configurar CORS ---

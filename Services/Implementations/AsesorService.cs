@@ -9,7 +9,7 @@ namespace Asesorias_API_MVC.Services.Implementations
     public class AsesorService : IAsesorService
     {
         private readonly ApplicationDbContext _context;
-        private readonly IWebHostEnvironment _env; // Inyectamos entorno para saber ruta wwwroot
+        private readonly IWebHostEnvironment _env;
 
         public AsesorService(ApplicationDbContext context, IWebHostEnvironment env)
         {
@@ -19,34 +19,58 @@ namespace Asesorias_API_MVC.Services.Implementations
 
         public async Task<GenericResponseDto> ApplyToBeAsesorAsync(AsesorApplyDto dto, string userId)
         {
+            // 1. Verificar si ya existe
             var existingApplication = await _context.Asesores.FindAsync(userId);
             if (existingApplication != null)
             {
-                return new GenericResponseDto { IsSuccess = false, Message = "Ya tienes una solicitud pendiente o aprobada." };
+                return new GenericResponseDto { IsSuccess = false, Message = "Ya tienes una solicitud registrada." };
             }
 
-            // Guardar Archivo
             string fileUrl = "";
-            if (dto.DocumentoVerificacion != null && dto.DocumentoVerificacion.Length > 0)
+
+            // 2. PROCESAR BASE64
+            if (!string.IsNullOrEmpty(dto.ArchivoBase64))
             {
-                // 1. Definir ruta: wwwroot/Uploads/CVs
-                string uploadsFolder = Path.Combine(_env.WebRootPath, "Uploads", "CVs");
-                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-                // 2. Nombre único
-                string uniqueFileName = Guid.NewGuid().ToString() + "_" + dto.DocumentoVerificacion.FileName;
-                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                // 3. Guardar
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                try
                 {
-                    await dto.DocumentoVerificacion.CopyToAsync(fileStream);
-                }
+                    // Ruta segura: usa ContentRoot si WebRoot es nulo
+                    string webRootPath = _env.WebRootPath ?? _env.ContentRootPath;
+                    if (string.IsNullOrEmpty(webRootPath))
+                        webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
 
-                // 4. Guardar URL relativa para la BD
-                fileUrl = "/Uploads/CVs/" + uniqueFileName;
+                    string uploadsFolder = Path.Combine(webRootPath, "Uploads", "CVs");
+                    if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                    // Limpiar encabezado del base64 si existe (data:application/pdf;base64,...)
+                    string base64Clean = dto.ArchivoBase64;
+                    if (base64Clean.Contains(","))
+                    {
+                        base64Clean = base64Clean.Substring(base64Clean.IndexOf(",") + 1);
+                    }
+
+                    // Convertir a bytes
+                    byte[] fileBytes = Convert.FromBase64String(base64Clean);
+
+                    // Generar nombre único
+                    string extension = Path.GetExtension(dto.NombreArchivo);
+                    if (string.IsNullOrEmpty(extension)) extension = ".pdf"; // Default
+
+                    string uniqueName = $"{Guid.NewGuid()}{extension}";
+                    string filePath = Path.Combine(uploadsFolder, uniqueName);
+
+                    // Guardar en disco
+                    await File.WriteAllBytesAsync(filePath, fileBytes);
+
+                    // Ruta para la BD
+                    fileUrl = $"/Uploads/CVs/{uniqueName}";
+                }
+                catch (Exception ex)
+                {
+                    return new GenericResponseDto { IsSuccess = false, Message = "Error al guardar archivo: " + ex.Message };
+                }
             }
 
+            // 3. Guardar en Base de Datos
             var newAsesor = new Asesor
             {
                 UsuarioId = userId,
@@ -59,8 +83,12 @@ namespace Asesorias_API_MVC.Services.Implementations
                 AniosExperiencia = dto.AniosExperiencia,
                 ExperienciaLaboral = dto.ExperienciaLaboral,
                 Certificaciones = dto.Certificaciones,
-                DocumentoVerificacionUrl = fileUrl, // Guardamos la ruta del archivo
-                EstaAprobado = false
+                DocumentoVerificacionUrl = fileUrl,
+                EstaAprobado = false,
+                // Campos obligatorios de auditoría (si no los pone el DBContext automáticamente)
+                CreatedAt = DateTime.UtcNow,
+                ModifiedAt = DateTime.UtcNow,
+                IsActive = true
             };
 
             await _context.Asesores.AddAsync(newAsesor);

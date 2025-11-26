@@ -1,11 +1,16 @@
 ﻿using Asesorias_API_MVC.Models.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace Asesorias_API_MVC.Models
 {
     // Esta será nuestra tabla AspNetUsers
     public class Usuario : IdentityUser, ISoftDeletable, IAuditable
     {
+        // --- NUEVO CAMPO: Este sí se puede repetir ---
+        [MaxLength(100)]
+        public string NombreCompleto { get; set; }
+
         // --- Propiedad de Borrado Lógico ---
         public bool IsActive { get; set; } = true;
 

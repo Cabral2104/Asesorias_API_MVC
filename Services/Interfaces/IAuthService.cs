@@ -8,5 +8,10 @@ namespace Asesorias_API_MVC.Services.Interfaces
         Task<AuthResponseDto> RegisterAsync(RegistroUsuarioDto registerDto);
 
         Task<AuthResponseDto> LoginAsync(LoginDto loginDto);
+
+        // --- NUEVOS MÉTODOS ---
+        Task<GenericResponseDto> UpdateProfileAsync(string userId, UpdateProfileDto dto);
+        Task<GenericResponseDto> ForgotPasswordAsync(string email);
+        Task<GenericResponseDto> ResetPasswordAsync(ResetPasswordDto dto);
     }
 }

@@ -16,81 +16,76 @@ namespace Asesorias_API_MVC.Controllers
         private readonly IAuthService _authService;
         private readonly UserManager<Usuario> _userManager;
 
-        // Inyectamos el servicio
         public AuthController(IAuthService authService, UserManager<Usuario> userManager)
         {
             _authService = authService;
             _userManager = userManager;
         }
 
-        // Endpoint para Registrar
-        // POST: /api/Auth/register
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegistroUsuarioDto registerDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState); // Devuelve error si el DTO no es válido
-            }
-
-            // El controlador solo le pasa el trabajo al servicio
+            if (!ModelState.IsValid) return BadRequest(ModelState);
             var result = await _authService.RegisterAsync(registerDto);
-
-            // Y devuelve la respuesta del servicio
-            if (!result.IsSuccess)
-            {
-                return BadRequest(result); // Si falló (ej: email existe)
-            }
-
-            return Ok(result); // Si fue exitoso
+            if (!result.IsSuccess) return BadRequest(result);
+            return Ok(result);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
+            if (!ModelState.IsValid) return BadRequest(ModelState);
             var result = await _authService.LoginAsync(loginDto);
-
-            if (!result.IsSuccess)
-            {
-                return Unauthorized(result); // Usamos 401 Unauthorized para login fallido
-            }
-
-            return Ok(result); // 200 OK con el token
+            if (!result.IsSuccess) return Unauthorized(result);
+            return Ok(result);
         }
 
+        // --- NUEVOS ENDPOINTS ---
+
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var result = await _authService.UpdateProfileAsync(userId, dto);
+            return result.IsSuccess ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            var result = await _authService.ForgotPasswordAsync(dto.Email);
+            return Ok(result); // Siempre OK por seguridad
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var result = await _authService.ResetPasswordAsync(dto);
+            return result.IsSuccess ? Ok(result) : BadRequest(result);
+        }
+
+        // -------------------------
+
         [HttpGet("perfil")]
-        [Authorize] // <-- ¡LA CERRADURA! Solo usuarios autenticados pueden entrar.
+        [Authorize]
         public async Task<IActionResult> GetMyProfile()
         {
-            // Gracias a [Authorize], podemos estar seguros de que "User" existe.
-            // Leemos el ID del token (que es más seguro que pasarlo por URL).
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized();
-            }
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                return NotFound(new { Message = "Usuario no encontrado." });
-            }
+            if (user == null) return NotFound(new { Message = "Usuario no encontrado." });
 
             var roles = await _userManager.GetRolesAsync(user);
 
-            // Devolvemos el perfil usando nuestro DTO
             var profile = new UserProfileDto
             {
                 Id = user.Id,
-                UserName = user.UserName,
+                UserName = user.NombreCompleto ?? user.UserName, // Devolvemos el nombre bonito
                 Email = user.Email,
-                Roles = roles.ToList()
+                Roles = roles.ToList(),
+                PhoneNumber = user.PhoneNumber // Mapeamos el teléfono de la BD al DTO
             };
 
             return Ok(profile);

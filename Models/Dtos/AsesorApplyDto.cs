@@ -38,8 +38,11 @@ namespace Asesorias_API_MVC.Models.Dtos
         [MaxLength(500)]
         public string Certificaciones { get; set; } // Opcional
 
-        [Required(ErrorMessage = "El enlace a tu CV (PDF) es requerido.")]
-        [Url(ErrorMessage = "Debes ingresar una URL válida (ej. https://...)")]
-        public string DocumentoVerificacionUrl { get; set; }
+        //[Required(ErrorMessage = "El enlace a tu CV (PDF) es requerido.")]
+        //[Url(ErrorMessage = "Debes ingresar una URL válida (ej. https://...)")]
+        //public string DocumentoVerificacionUrl { get; set; }
+
+        // --- CAMBIO: Volvemos a IFormFile (SIN Required para evitar crash del binder) ---
+        public IFormFile DocumentoVerificacion { get; set; }
     }
 }

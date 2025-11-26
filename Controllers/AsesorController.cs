@@ -19,33 +19,24 @@ namespace Asesorias_API_MVC.Controllers
             _asesorService = asesorService;
         }
 
-        // Endpoint para solicitar ser Asesor
-        // POST: /api/Asesor/apply
         [HttpPost("apply")]
-        // --- CAMBIO CLAVE ---
-        // Volvemos a [FromBody] y aceptamos JSON.
-        // Quitamos [Consumes], [DisableRequestSizeLimit], etc.
-        public async Task<IActionResult> ApplyToBeAsesor([FromBody] AsesorApplyDto dto)
+        [Consumes("multipart/form-data")] // IMPORTANTE: Aceptamos archivos
+        public async Task<IActionResult> ApplyToBeAsesor([FromForm] AsesorApplyDto dto)
         {
-            if (!ModelState.IsValid)
+            // Validación manual del archivo
+            if (dto.DocumentoVerificacion == null || dto.DocumentoVerificacion.Length == 0)
             {
-                return BadRequest(ModelState);
+                return BadRequest(new { Message = "Debes subir tu CV en formato PDF o DOCX." });
             }
+
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized();
-            }
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            // --- CAMBIO CLAVE ---
-            // Ya no pasamos el archivo, solo el DTO
             var result = await _asesorService.ApplyToBeAsesorAsync(dto, userId);
 
-            if (!result.IsSuccess)
-            {
-                return BadRequest(result);
-            }
+            if (!result.IsSuccess) return BadRequest(result);
 
             return Ok(result);
         }

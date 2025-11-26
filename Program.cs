@@ -9,10 +9,22 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CONFIGURAR SERVICIOS ---
+
+// Permitir subida de archivos de hasta 50 MB
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = 52428800; // 50 MB
+});
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 52428800;
+});
 
 // --- NUEVO: Configurar CORS ---
 builder.Services.AddCors(options =>
@@ -41,9 +53,19 @@ builder.Services.AddDbContext<AnalyticsDbContext>(options =>
     options.UseNpgsql(analyticsConnectionString));
 
 // Configurar Identity
-builder.Services.AddIdentity<Usuario, IdentityRole>()
+builder.Services.AddIdentity<Usuario, IdentityRole>(options =>
+{
+    // Configuración de bloqueo y contraseña si quieres
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+})
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
+
+// --- NUEVO: Configurar vida del token (2 horas) ---
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+{
+    options.TokenLifespan = TimeSpan.FromHours(2);
+});
 
 // Configurar Autenticación JWT
 builder.Services.AddAuthentication(options =>
@@ -119,6 +141,10 @@ builder.Services.AddScoped<IEstudianteService, EstudianteService>();
 builder.Services.AddScoped<ICalificacionService, CalificacionService>();
 
 builder.Services.AddScoped<ISolicitudService, SolicitudService>();
+
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.AddScoped<IAsesorService, AsesorService>();
 
 // --- 2. CONSTRUIR LA APP ---
 var app = builder.Build();

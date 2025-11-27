@@ -159,5 +159,87 @@ namespace Asesorias_API_MVC.Services.Implementations
 
             return results;
         }
+
+        // 1. GRÁFICA DE INGRESOS MENSUALES (REAL)
+        public async Task<IEnumerable<MonthlyStatsDto>> GetMonthlyRevenueAsync()
+        {
+            var anioActual = DateTime.UtcNow.Year;
+
+            // Consultamos PostgreSQL
+            var pagosPorMes = await _analyticsDb.HistorialDePagos
+                .Where(p => p.FechaPago.Year == anioActual)
+                .GroupBy(p => p.FechaPago.Month)
+                .Select(g => new { Mes = g.Key, Total = g.Sum(x => x.Monto) })
+                .ToListAsync();
+
+            // Preparamos la lista de meses para que no falten meses con 0 ingresos
+            var resultado = new List<MonthlyStatsDto>();
+            string[] nombresMeses = { "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
+
+            for (int i = 1; i <= 12; i++)
+            {
+                var datosMes = pagosPorMes.FirstOrDefault(p => p.Mes == i);
+                resultado.Add(new MonthlyStatsDto
+                {
+                    Mes = nombresMeses[i - 1],
+                    Ingresos = datosMes?.Total ?? 0
+                });
+            }
+
+            return resultado;
+        }
+
+        // 2. DETALLE COMPLETO DE ASESOR
+        public async Task<AsesorDetailFullDto> GetAsesorDetailsAsync(string asesorId)
+        {
+            // A. Datos de SQL Server
+            var asesor = await _context.Asesores
+                .Include(a => a.Usuario)
+                .Include(a => a.Cursos)
+                    .ThenInclude(c => c.Inscripciones) // Para contar alumnos
+                .FirstOrDefaultAsync(a => a.UsuarioId == asesorId);
+
+            if (asesor == null) return null;
+
+            // B. Datos de PostgreSQL (Ingresos y Rating)
+            // Obtenemos los IDs de los cursos de este asesor
+            var cursoIds = asesor.Cursos.Select(c => c.CursoId).ToList();
+
+            var stats = await _analyticsDb.HistorialDePagos
+                .Where(p => cursoIds.Contains(p.CursoId))
+                .SumAsync(p => p.Monto);
+
+            var rating = 0.0;
+            var countRatings = await _analyticsDb.Calificaciones
+                .Where(c => cursoIds.Contains(c.CursoId))
+                .CountAsync();
+
+            if (countRatings > 0)
+            {
+                rating = await _analyticsDb.Calificaciones
+                    .Where(c => cursoIds.Contains(c.CursoId))
+                    .AverageAsync(c => c.Rating);
+            }
+
+            // C. Mapeo final
+            return new AsesorDetailFullDto
+            {
+                NombreCompleto = asesor.Usuario.NombreCompleto ?? asesor.Usuario.UserName,
+                Email = asesor.Usuario.Email,
+                Telefono = asesor.Usuario.PhoneNumber ?? "N/A",
+                Especialidad = asesor.Especialidad,
+                TotalCursos = asesor.Cursos.Count,
+                TotalEstudiantes = asesor.Cursos.Sum(c => c.Inscripciones.Count), // Suma inscripciones de SQL
+                TotalIngresos = stats,
+                RatingPromedio = rating,
+                Cursos = asesor.Cursos.Select(c => new CursoSimpleDto
+                {
+                    Titulo = c.Titulo,
+                    Costo = c.Costo,
+                    Estado = c.EstaPublicado,
+                    Inscritos = c.Inscripciones.Count
+                }).ToList()
+            };
+        }
     }
 }

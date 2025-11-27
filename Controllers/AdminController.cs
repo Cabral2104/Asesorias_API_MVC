@@ -61,5 +61,20 @@ namespace Asesorias_API_MVC.Controllers
             var stats = await _adminService.GetAsesorDashboardAsync();
             return Ok(stats);
         }
+
+        [HttpGet("revenue-chart")]
+        public async Task<IActionResult> GetRevenueChart()
+        {
+            var data = await _adminService.GetMonthlyRevenueAsync();
+            return Ok(data);
+        }
+
+        [HttpGet("asesor-detail/{asesorId}")]
+        public async Task<IActionResult> GetAsesorDetail(string asesorId)
+        {
+            var data = await _adminService.GetAsesorDetailsAsync(asesorId);
+            if (data == null) return NotFound();
+            return Ok(data);
+        }
     }
 }

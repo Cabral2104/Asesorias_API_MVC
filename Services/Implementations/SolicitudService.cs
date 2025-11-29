@@ -16,7 +16,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // 1. Estudiante crea solicitud
-        public async Task<GenericResponseDto> CrearSolicitudAsync(SolicitudCreateDto dto, string estudianteId)
+        public async Task<GenericResponseDto> CrearSolicitudAsync(SolicitudCreateDto dto, int estudianteId)
         {
             var solicitud = new SolicitudDeAyuda
             {
@@ -34,7 +34,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // 2. Estudiante ve sus solicitudes y ofertas
-        public async Task<IEnumerable<SolicitudDetailDto>> GetMisSolicitudesAsync(string estudianteId)
+        public async Task<IEnumerable<SolicitudDetailDto>> GetMisSolicitudesAsync(int estudianteId)
         {
             return await _context.SolicitudesDeAyuda
                 .Where(s => s.EstudianteId == estudianteId && s.IsActive)
@@ -56,7 +56,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // 4. Asesor envía cotización (Oferta)
-        public async Task<GenericResponseDto> CrearOfertaAsync(int solicitudId, OfertaCreateDto dto, string asesorId)
+        public async Task<GenericResponseDto> CrearOfertaAsync(int solicitudId, OfertaCreateDto dto, int asesorId)
         {
             // Validar existencia
             var solicitud = await _context.SolicitudesDeAyuda.FindAsync(solicitudId);
@@ -87,7 +87,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // 5. Estudiante acepta oferta
-        public async Task<GenericResponseDto> AceptarOfertaAsync(int ofertaId, string estudianteId)
+        public async Task<GenericResponseDto> AceptarOfertaAsync(int ofertaId, int estudianteId)
         {
             var oferta = await _context.OfertasSolicitud
                 .Include(o => o.Solicitud)

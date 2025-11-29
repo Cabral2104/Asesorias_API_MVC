@@ -19,7 +19,6 @@ namespace Asesorias_API_MVC.Controllers
         }
 
         [HttpPost("apply")]
-        // Usamos [FromBody] porque ahora enviaremos un JSON limpio, no un formulario multipart
         public async Task<IActionResult> ApplyToBeAsesor([FromBody] AsesorApplyDto dto)
         {
             if (!ModelState.IsValid)
@@ -27,8 +26,12 @@ namespace Asesorias_API_MVC.Controllers
                 return BadRequest(ModelState);
             }
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            // PATRÓN DE PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized();
+            }
 
             try
             {

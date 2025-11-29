@@ -18,7 +18,7 @@ namespace Asesorias_API_MVC.Services.Implementations
             _appDb = appDb;
         }
 
-        public async Task<GenericResponseDto> AddCalificacionAsync(int cursoId, string estudianteId, CalificacionCreateDto dto)
+        public async Task<GenericResponseDto> AddCalificacionAsync(int cursoId, int estudianteId, CalificacionCreateDto dto)
         {
             // 1. Verificamos en SQL Server que el estudiante esté inscrito
             var estaInscrito = await _appDb.Inscripciones

@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Asesorias_API_MVC.Models.Dtos;
 using Asesorias_API_MVC.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +13,7 @@ namespace Asesorias_API_MVC.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        // OJO: UserManager<Usuario> ya sabe que Usuario es int gracias al cambio en Program.cs y DbContext
         private readonly UserManager<Usuario> _userManager;
 
         public AuthController(IAuthService authService, UserManager<Usuario> userManager)
@@ -40,13 +40,19 @@ namespace Asesorias_API_MVC.Controllers
             return Ok(result);
         }
 
-        // --- NUEVOS ENDPOINTS ---
-
         [HttpPut("profile")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // PATRÓN DE PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized();
+            }
+
+            // Nota: Aquí asumo que tu AuthService.UpdateProfileAsync ahora recibe un int
+            // Si no, tendrás que convertir userId.ToString() o actualizar la interfaz IAuthService
             var result = await _authService.UpdateProfileAsync(userId, dto);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }
@@ -55,7 +61,7 @@ namespace Asesorias_API_MVC.Controllers
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
             var result = await _authService.ForgotPasswordAsync(dto.Email);
-            return Ok(result); // Siempre OK por seguridad
+            return Ok(result);
         }
 
         [HttpPost("reset-password")]
@@ -65,31 +71,33 @@ namespace Asesorias_API_MVC.Controllers
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }
 
-        // -------------------------
-
         [HttpGet("perfil")]
         [Authorize]
         public async Task<IActionResult> GetMyProfile()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            // PATRÓN DE PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized();
+            }
 
-            var user = await _userManager.FindByIdAsync(userId);
+            // FindByIdAsync espera string por defecto en Identity, así que convertimos el int a string
+            var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null) return NotFound(new { Message = "Usuario no encontrado." });
 
             var roles = await _userManager.GetRolesAsync(user);
 
             var profile = new UserProfileDto
             {
-                Id = user.Id,
-                UserName = user.NombreCompleto ?? user.UserName, // Devolvemos el nombre bonito
+                Id = user.Id, // Devolvemos el ID como string al frontend por compatibilidad JSON
+                UserName = user.NombreCompleto ?? user.UserName,
                 Email = user.Email,
                 Roles = roles.ToList(),
-                PhoneNumber = user.PhoneNumber // Mapeamos el teléfono de la BD al DTO
+                PhoneNumber = user.PhoneNumber
             };
 
             return Ok(profile);
         }
     }
 }
-

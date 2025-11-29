@@ -15,7 +15,7 @@ namespace Asesorias_API_MVC.Services.Implementations
             _context = context;
         }
 
-        public async Task<GenericResponseDto> ApplyToBeAsesorAsync(AsesorApplyDto dto, string userId)
+        public async Task<GenericResponseDto> ApplyToBeAsesorAsync(AsesorApplyDto dto, int userId)
         {
             // 1. BUSCAR SI YA EXISTE (INCLUYENDO LOS BORRADOS/RECHAZADOS)
             // Usamos IgnoreQueryFilters() para ver registros con IsActive = false

@@ -10,7 +10,7 @@ namespace Asesorias_API_MVC.Models
         public int OfertaId { get; set; }
 
         public int SolicitudId { get; set; } // A qué solicitud pertenece
-        public string AsesorId { get; set; } // Qué asesor la hizo
+        public int AsesorId { get; set; } // Qué asesor la hizo
 
         [Required]
         [Column(TypeName = "decimal(10, 2)")]

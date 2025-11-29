@@ -37,10 +37,10 @@ builder.Services.AddDbContext<AnalyticsDbContext>(options =>
     options.UseNpgsql(analyticsConnectionString));
 
 // --- 3. Configurar Identity (Usuarios y Roles) ---
-builder.Services.AddIdentity<Usuario, IdentityRole>(options =>
+builder.Services.AddIdentity<Usuario, IdentityRole<int>>(options =>
 {
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-    // Puedes agregar más reglas de password aquí si gustas
+    
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();

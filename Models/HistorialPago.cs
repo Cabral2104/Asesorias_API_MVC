@@ -15,7 +15,7 @@ namespace Asesorias_API_MVC.Models
         public int CursoId { get; set; }
 
         [Column("EstudianteId")]
-        public string EstudianteId { get; set; }
+        public int EstudianteId { get; set; }
 
         [Column("Monto")]
         public decimal Monto { get; set; }

@@ -20,7 +20,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- LÓGICA PARA CREAR UN CURSO ---
-        public async Task<GenericResponseDto> CreateCursoAsync(CursoCreateDto dto, string asesorId)
+        public async Task<GenericResponseDto> CreateCursoAsync(CursoCreateDto dto, int asesorId)
         {
             // Verificamos si el AsesorId (que viene del token) es válido
             var asesor = await _context.Asesores.FindAsync(asesorId);
@@ -69,7 +69,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- LÓGICA PARA PUBLICAR UN CURSO ---
-        public async Task<GenericResponseDto> PublishCursoAsync(int cursoId, string asesorId)
+        public async Task<GenericResponseDto> PublishCursoAsync(int cursoId, int asesorId)
         {
             var curso = await _context.Cursos.FindAsync(cursoId);
 
@@ -97,7 +97,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- NUEVO MÉTODO: Ver mis cursos ---
-        public async Task<IEnumerable<CursoPublicDto>> GetMyCursosAsync(string asesorId)
+        public async Task<IEnumerable<CursoPublicDto>> GetMyCursosAsync(int asesorId)
         {
             var misCursos = await _context.Cursos
                 .Where(c => c.AsesorId == asesorId && c.IsActive == true) // Filtra por el ID del asesor
@@ -118,7 +118,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- NUEVO MÉTODO: Actualizar mi curso ---
-        public async Task<GenericResponseDto> UpdateCursoAsync(int cursoId, CursoCreateDto dto, string asesorId)
+        public async Task<GenericResponseDto> UpdateCursoAsync(int cursoId, CursoCreateDto dto, int asesorId)
         {
             var curso = await _context.Cursos.FindAsync(cursoId);
 
@@ -145,7 +145,7 @@ namespace Asesorias_API_MVC.Services.Implementations
             return new GenericResponseDto { IsSuccess = true, Message = "Curso actualizado exitosamente." };
         }
 
-        public async Task<GenericResponseDto> DeleteCursoAsync(int cursoId, string asesorId)
+        public async Task<GenericResponseDto> DeleteCursoAsync(int cursoId, int asesorId)
         {
             var curso = await _context.Cursos
                 .Include(c => c.Lecciones) // ¡IMPORTANTE: Cargar las lecciones hijas!

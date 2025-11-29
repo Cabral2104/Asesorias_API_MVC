@@ -95,9 +95,9 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- ACTUALIZAR PERFIL ---
-        public async Task<GenericResponseDto> UpdateProfileAsync(string userId, UpdateProfileDto dto)
+        public async Task<GenericResponseDto> UpdateProfileAsync(int userId, UpdateProfileDto dto)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null) return new GenericResponseDto { IsSuccess = false, Message = "Usuario no encontrado" };
 
             user.NombreCompleto = dto.NombreCompleto;
@@ -161,7 +161,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         {
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email ?? ""),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 // Priorizamos mostrar el NombreCompleto, si no el UserName

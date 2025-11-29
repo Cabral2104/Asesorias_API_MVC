@@ -22,8 +22,8 @@ namespace Asesorias_API_MVC.Models
         // public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
         [Required]
-        public string EstudianteId { get; set; }
-        public string? AsesorAsignadoId { get; set; }
+        public int EstudianteId { get; set; }
+        public int? AsesorAsignadoId { get; set; }
 
         // --- Propiedades de Borrado Lógico y Auditoría ---
         public bool IsActive { get; set; } = true;

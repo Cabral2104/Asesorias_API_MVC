@@ -15,7 +15,7 @@ namespace Asesorias_API_MVC.Models
         public int CursoId { get; set; } // FK "lógica" a SQL Server
 
         [Column("EstudianteId")]
-        public string EstudianteId { get; set; } // FK "lógica" a SQL Server
+        public int EstudianteId { get; set; } // FK "lógica" a SQL Server
 
         [Column("Rating")]
         public int Rating { get; set; }

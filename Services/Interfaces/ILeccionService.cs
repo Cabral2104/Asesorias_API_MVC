@@ -8,12 +8,12 @@ namespace Asesorias_API_MVC.Services.Interfaces
         Task<IEnumerable<LeccionPublicDto>> GetLeccionesByCursoIdAsync(int cursoId);
 
         // Agregar una lección a un curso (solo el dueño)
-        Task<GenericResponseDto> AddLeccionToCursoAsync(int cursoId, LeccionCreateDto dto, string asesorId);
+        Task<GenericResponseDto> AddLeccionToCursoAsync(int cursoId, LeccionCreateDto dto, int asesorId);
 
         // Actualizar una lección (solo el dueño)
-        Task<GenericResponseDto> UpdateLeccionAsync(int leccionId, LeccionCreateDto dto, string asesorId);
+        Task<GenericResponseDto> UpdateLeccionAsync(int leccionId, LeccionCreateDto dto, int asesorId);
 
         // Eliminar una lección (solo el dueño)
-        Task<GenericResponseDto> DeleteLeccionAsync(int leccionId, string asesorId);
+        Task<GenericResponseDto> DeleteLeccionAsync(int leccionId, int asesorId);
     }
 }

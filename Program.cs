@@ -1,4 +1,3 @@
-
 using Asesorias_API_MVC.Data;
 using Asesorias_API_MVC.Models;
 using Asesorias_API_MVC.Services.Implementations;
@@ -9,67 +8,50 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.AspNetCore.Http.Features;
+// Ya no necesitas los usings de Kestrel o Http.Features si no configuras límites
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- AGREGAR ESTO AL INICIO ---
-
-// 1. Configurar Kestrel (para cuando ejecutas sin IIS)
-builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
-{
-    options.Limits.MaxRequestBodySize = 104857600; // 100 MB
-});
-
-// 2. Configurar el límite de formularios (aunque usamos JSON, es bueno tenerlo)
-builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
-{
-    options.MultipartBodyLengthLimit = 104857600; // 100 MB
-});
-
-// --- NUEVO: Configurar CORS ---
+// --- 1. Configurar CORS (Permitir conexiones desde React) ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
         builder =>
         {
-            builder.AllowAnyOrigin()    // Permitir cualquier origen
-                   .AllowAnyMethod()    // Permitir cualquier método (GET, POST, etc.)
-                   .AllowAnyHeader();   // Permitir cualquier cabecera
+            builder.AllowAnyOrigin()    // Permitir cualquier origen (tu frontend)
+                   .AllowAnyMethod()    // Permitir GET, POST, PUT, DELETE
+                   .AllowAnyHeader();   // Permitir cualquier cabecera (Tokens, etc.)
         });
 });
 
-// Obtener la cadena de conexión con SQLServer
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// --- 2. Configurar Bases de Datos ---
 
-// Configurar el DbContext de SQLServer
+// SQL Server (Datos principales)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// Obtener la cadena de conexión (PostgreSQL)
+// PostgreSQL (Analíticas)
 var analyticsConnectionString = builder.Configuration.GetConnectionString("AnalyticsConnection");
-
-// Configurar el 2do DbContext (PostgreSQL)
 builder.Services.AddDbContext<AnalyticsDbContext>(options =>
     options.UseNpgsql(analyticsConnectionString));
 
-// Configurar Identity
+// --- 3. Configurar Identity (Usuarios y Roles) ---
 builder.Services.AddIdentity<Usuario, IdentityRole>(options =>
 {
-    // Configuración de bloqueo y contraseña si quieres
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    // Puedes agregar más reglas de password aquí si gustas
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-// --- NUEVO: Configurar vida del token (2 horas) ---
+// Configurar vida de los tokens de recuperación de contraseña (2 horas)
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
 {
     options.TokenLifespan = TimeSpan.FromHours(2);
 });
 
-// Configurar Autenticación JWT
+// --- 4. Configurar Autenticación JWT ---
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -89,16 +71,19 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// --- 5. Configurar Controladores y JSON ---
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        // Evita errores de referencia circular al serializar relaciones
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
 
+// --- 6. Configurar Swagger (Documentación API) ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // 1. Definir la seguridad (Bearer Token)
+    // Definir la seguridad (Bearer Token) en Swagger
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -106,10 +91,10 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Por favor, introduce tu token JWT con el prefijo 'Bearer ' en el campo."
+        Description = "Introduce tu token JWT aquí."
     });
 
-    // 2. Hacer que Swagger aplique este requisito a todos los endpoints
+    // Aplicar seguridad a todos los endpoints en Swagger UI
     options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
         {
@@ -126,32 +111,23 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// --- ESTA ES LA LÍNEA DEL PASO 4 ---
-// Registra nuestro "Chef" (AuthService) cada vez que alguien pida el "Contrato" (IAuthService)
+// --- 7. Inyección de Dependencias (Servicios) ---
 builder.Services.AddScoped<IAuthService, AuthService>();
-
 builder.Services.AddScoped<IAsesorService, AsesorService>();
-
 builder.Services.AddScoped<IAdminService, AdminService>();
-
 builder.Services.AddScoped<ICursoService, CursoService>();
-
 builder.Services.AddScoped<ILeccionService, LeccionService>();
-
 builder.Services.AddScoped<IEstudianteService, EstudianteService>();
-
 builder.Services.AddScoped<ICalificacionService, CalificacionService>();
-
 builder.Services.AddScoped<ISolicitudService, SolicitudService>();
-
 builder.Services.AddScoped<IEmailService, EmailService>();
 
-builder.Services.AddScoped<IAsesorService, AsesorService>();
-
-// --- 2. CONSTRUIR LA APP ---
+// =========================================================
+// CONSTRUCCIÓN DE LA APLICACIÓN
+// =========================================================
 var app = builder.Build();
 
-// Ejecutar el Seeder de Roles al inicio
+// --- 8. Seeding de Datos (Crear roles si no existen) ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -166,7 +142,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configurar el pipeline de HTTP
+// --- 9. Pipeline de Peticiones HTTP ---
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -175,15 +152,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// --- NUEVO: Usar la política CORS ---
+// Activar CORS (¡Importante para que React se conecte!)
 app.UseCors("AllowAll");
 
-app.UseStaticFiles();
+app.UseStaticFiles(); // Para servir archivos de wwwroot si fuera necesario (imágenes, etc.)
 
-// Habilitar Autenticación y Autorización
+// Activar Autenticación y Autorización
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 app.MapControllers();
 

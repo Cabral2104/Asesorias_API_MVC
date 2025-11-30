@@ -7,7 +7,7 @@ namespace Asesorias_API_MVC.Models
     public class Asesor : ISoftDeletable, IAuditable
     {
         [Key]
-        public string UsuarioId { get; set; }
+        public int UsuarioId { get; set; }
 
         [Required]
         [MaxLength(100)]

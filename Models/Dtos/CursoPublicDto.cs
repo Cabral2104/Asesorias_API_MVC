@@ -10,7 +10,7 @@
         public bool EstaPublicado { get; set; }
 
         // Datos del Asesor
-        public string AsesorId { get; set; }
+        public int AsesorId { get; set; }
         public string AsesorNombre { get; set; } // ¡Importante para el catálogo!
     }
 }

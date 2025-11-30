@@ -43,7 +43,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- AGREGAR LECCIÓN (Solo Asesor Dueño) ---
-        public async Task<GenericResponseDto> AddLeccionToCursoAsync(int cursoId, LeccionCreateDto dto, string asesorId)
+        public async Task<GenericResponseDto> AddLeccionToCursoAsync(int cursoId, LeccionCreateDto dto, int asesorId)
         {
             // Verificamos que el curso exista Y que le pertenezca al asesor
             var curso = await _context.Cursos
@@ -69,7 +69,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- ACTUALIZAR LECCIÓN (Solo Asesor Dueño) ---
-        public async Task<GenericResponseDto> UpdateLeccionAsync(int leccionId, LeccionCreateDto dto, string asesorId)
+        public async Task<GenericResponseDto> UpdateLeccionAsync(int leccionId, LeccionCreateDto dto, int asesorId)
         {
             // Para verificar propiedad, debemos unir Leccion -> Curso
             var leccion = await _context.Lecciones
@@ -98,7 +98,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- ELIMINAR LECCIÓN (Solo Asesor Dueño) ---
-        public async Task<GenericResponseDto> DeleteLeccionAsync(int leccionId, string asesorId)
+        public async Task<GenericResponseDto> DeleteLeccionAsync(int leccionId, int asesorId)
         {
             var leccion = await _context.Lecciones
                 .Include(l => l.Curso)

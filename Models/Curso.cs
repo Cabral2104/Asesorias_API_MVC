@@ -22,7 +22,7 @@ namespace Asesorias_API_MVC.Models
         // public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
         [Required]
-        public string AsesorId { get; set; }
+        public int AsesorId { get; set; }
 
         // --- Propiedades de Borrado Lógico y Auditoría ---
         public bool IsActive { get; set; } = true;

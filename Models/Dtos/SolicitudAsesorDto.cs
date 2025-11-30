@@ -3,7 +3,7 @@
     public class SolicitudAsesorDto
     {
         // Datos del Usuario (de AspNetUsers)
-        public string UsuarioId { get; set; }
+        public int UsuarioId { get; set; }
         public string UserName { get; set; }
         public string Email { get; set; }
 

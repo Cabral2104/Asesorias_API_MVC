@@ -1,18 +1,19 @@
-﻿using Asesorias_API_MVC.Models; // IMPORTANTE: Apunta a nuestra carpeta de Modelos
+﻿using Asesorias_API_MVC.Models;
 using Asesorias_API_MVC.Models.Dtos;
 using Asesorias_API_MVC.Models.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Asesorias_API_MVC.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<Usuario>
+    // CAMBIO CLAVE: <Usuario, IdentityRole<int>, int>
+    public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>, int>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
 
-        // Registramos todas nuestras tablas
         public DbSet<Asesor> Asesores { get; set; }
         public DbSet<Curso> Cursos { get; set; }
         public DbSet<Leccion> Lecciones { get; set; }
@@ -20,46 +21,34 @@ namespace Asesorias_API_MVC.Data
         public DbSet<SolicitudDeAyuda> SolicitudesDeAyuda { get; set; }
         public DbSet<OfertaSolicitud> OfertasSolicitud { get; set; }
 
-
-        // --- INTERCEPTOR AUTOMÁTICO DE BORRADO Y AUDITORÍA ---
-
+        // --- INTERCEPTOR DE AUDITORÍA Y BORRADO LÓGICO ---
         private void OnBeforeSaveChanges()
         {
-            var now = DateTime.UtcNow; // Obtenemos la fecha una sola vez
-
-            // Obtenemos todas las entradas que están siendo rastreadas por EF Core
+            var now = DateTime.UtcNow;
             var entries = ChangeTracker.Entries();
 
             foreach (var entry in entries)
             {
-                // ---- MANEJO DE AUDITORÍA (IAuditable) ----
+                // Auditoría
                 if (entry.Entity is IAuditable auditableEntity)
                 {
                     switch (entry.State)
                     {
-                        // Si la entidad se está AÑADIENDO
                         case EntityState.Added:
                             auditableEntity.CreatedAt = now;
                             auditableEntity.ModifiedAt = now;
                             break;
-
-                        // Si la entidad se está MODIFICANDO
                         case EntityState.Modified:
                             auditableEntity.ModifiedAt = now;
                             break;
                     }
                 }
 
-                // ---- MANEJO DE BORRADO LÓGICO (ISoftDeletable) ----
+                // Borrado Lógico
                 if (entry.Entity is ISoftDeletable softDeletableEntity && entry.State == EntityState.Deleted)
                 {
-                    // 1. Cambiar su estado de 'Borrado' a 'Modificado'
                     entry.State = EntityState.Modified;
-
-                    // 2. Poner la propiedad IsActive en 'false'
                     softDeletableEntity.IsActive = false;
-
-                    // 3. (Opcional pero bueno) Actualizar ModifiedAt al borrar lógicamente
                     if (entry.Entity is IAuditable auditableOnDelete)
                     {
                         auditableOnDelete.ModifiedAt = now;
@@ -68,28 +57,24 @@ namespace Asesorias_API_MVC.Data
             }
         }
 
-        // Sobrescribir el método SaveChanges() síncrono
         public override int SaveChanges()
         {
-            OnBeforeSaveChanges(); // Llamar a nuestro interceptor
+            OnBeforeSaveChanges();
             return base.SaveChanges();
         }
 
-        // Sobrescribir el método SaveChangesAsync() asíncrono
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            OnBeforeSaveChanges(); // Llamar a nuestro interceptor
+            OnBeforeSaveChanges();
             return base.SaveChangesAsync(cancellationToken);
         }
-
-        // --- FIN DEL INTERCEPTOR ---
-
+        // ----------------------------------------------------
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // --- APLICAR FILTROS GLOBALES DE CONSULTA (Solo IsActive) ---
+            // Filtros globales (Borrado Lógico)
             builder.Entity<Usuario>().HasQueryFilter(e => e.IsActive);
             builder.Entity<Asesor>().HasQueryFilter(e => e.IsActive);
             builder.Entity<Curso>().HasQueryFilter(e => e.IsActive);
@@ -98,55 +83,61 @@ namespace Asesorias_API_MVC.Data
             builder.Entity<SolicitudDeAyuda>().HasQueryFilter(e => e.IsActive);
             builder.Entity<OfertaSolicitud>().HasQueryFilter(e => e.IsActive);
 
-            // --- CONFIGURACIÓN DE RELACIONES (CON BORRADO SEGURO) ---
+            // --- CONFIGURACIÓN DE RELACIONES (CON BORRADO SEGURO - RESTRICT) ---
+            // Esto evita el error de "cycles or multiple cascade paths" en SQL Server
 
+            // Asesor -> Usuario
             builder.Entity<Asesor>()
                 .HasOne(a => a.Usuario)
                 .WithOne(u => u.Asesor)
-                .HasForeignKey<Asesor>(a => a.UsuarioId);
+                .HasForeignKey<Asesor>(a => a.UsuarioId); // UsuarioId es int
 
+            // Solicitud -> Estudiante
             builder.Entity<SolicitudDeAyuda>()
                 .HasOne(s => s.Estudiante)
                 .WithMany(u => u.Solicitudes)
                 .HasForeignKey(s => s.EstudianteId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
 
+            // Solicitud -> Asesor
             builder.Entity<SolicitudDeAyuda>()
                 .HasOne(s => s.AsesorAsignado)
                 .WithMany(a => a.SolicitudesAtendidas)
                 .HasForeignKey(s => s.AsesorAsignadoId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
 
+            // Inscripcion -> Estudiante
             builder.Entity<Inscripcion>()
                 .HasOne(i => i.Estudiante)
                 .WithMany(u => u.Inscripciones)
                 .HasForeignKey(i => i.EstudianteId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
 
+            // Inscripcion -> Curso
             builder.Entity<Inscripcion>()
                 .HasOne(i => i.Curso)
                 .WithMany(c => c.Inscripciones)
                 .HasForeignKey(i => i.CursoId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
 
-            // --- NUEVAS RELACIONES (Ofertas) ---
+            // Ofertas -> Solicitud
             builder.Entity<OfertaSolicitud>()
                 .HasOne(o => o.Solicitud)
                 .WithMany(s => s.Ofertas)
                 .HasForeignKey(o => o.SolicitudId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
 
+            // Ofertas -> Asesor
             builder.Entity<OfertaSolicitud>()
                 .HasOne(o => o.Asesor)
                 .WithMany()
                 .HasForeignKey(o => o.AsesorId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
 
-            // DTOs sin llave (para el Dashboard)
+            // Configuración del DTO sin llave (Dashboard)
             builder.Entity<AsesorRatingDto>(e =>
             {
-                e.HasNoKey(); // ¡Importante! No es una tabla real
-                // Le decimos qué precisión usar para el dinero
+                e.HasNoKey();
                 e.Property(p => p.IngresosGenerados).HasPrecision(18, 2);
             });
         }

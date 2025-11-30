@@ -23,8 +23,9 @@ namespace Asesorias_API_MVC.Controllers
             return Ok(applications);
         }
 
+        // CAMBIO: string userId -> int userId
         [HttpPost("approve/{userId}")]
-        public async Task<IActionResult> ApproveApplication(string userId)
+        public async Task<IActionResult> ApproveApplication(int userId)
         {
             var result = await _adminService.ReviewAsesorApplicationAsync(userId, true);
             if (!result.IsSuccess)
@@ -34,8 +35,9 @@ namespace Asesorias_API_MVC.Controllers
             return Ok(result);
         }
 
+        // CAMBIO: string userId -> int userId
         [HttpPost("reject/{userId}")]
-        public async Task<IActionResult> RejectApplication(string userId)
+        public async Task<IActionResult> RejectApplication(int userId)
         {
             var result = await _adminService.ReviewAsesorApplicationAsync(userId, false);
             if (!result.IsSuccess)
@@ -46,7 +48,6 @@ namespace Asesorias_API_MVC.Controllers
         }
 
         // --- ENDPOINTS DEL DASHBOARD ---
-        // GET: /api/Admin/dashboard-stats
         [HttpGet("dashboard-stats")]
         public async Task<IActionResult> GetDashboardStats()
         {
@@ -54,12 +55,27 @@ namespace Asesorias_API_MVC.Controllers
             return Ok(stats);
         }
 
-        // GET: /api/Admin/dashboard-asesores
         [HttpGet("dashboard-asesores")]
         public async Task<IActionResult> GetAsesorDashboard()
         {
             var stats = await _adminService.GetAsesorDashboardAsync();
             return Ok(stats);
+        }
+
+        [HttpGet("revenue-chart")]
+        public async Task<IActionResult> GetRevenueChart()
+        {
+            var data = await _adminService.GetMonthlyRevenueAsync();
+            return Ok(data);
+        }
+
+        // CAMBIO: string asesorId -> int asesorId
+        [HttpGet("asesor-detail/{asesorId}")]
+        public async Task<IActionResult> GetAsesorDetail(int asesorId)
+        {
+            var data = await _adminService.GetAsesorDetailsAsync(asesorId);
+            if (data == null) return NotFound();
+            return Ok(data);
         }
     }
 }

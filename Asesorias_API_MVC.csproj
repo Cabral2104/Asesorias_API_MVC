@@ -21,7 +21,6 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\Uploads\CVs\" />
-    <Folder Include="wwwroot\Uploads\CVs\" />
   </ItemGroup>
 
 </Project>

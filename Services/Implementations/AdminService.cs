@@ -25,9 +25,9 @@ namespace Asesorias_API_MVC.Services.Implementations
             var pendingApplications = await _context.Asesores
                 .Where(a => a.EstaAprobado == false && a.IsActive == true)
                 .Include(a => a.Usuario)
-                .Select(a => new SolicitudAsesorDto // Mapeo completo
+                .Select(a => new SolicitudAsesorDto
                 {
-                    UsuarioId = a.UsuarioId,
+                    UsuarioId = a.UsuarioId, // Ahora es int
                     UserName = a.Usuario.UserName,
                     Email = a.Usuario.Email,
                     Especialidad = a.Especialidad,
@@ -47,8 +47,10 @@ namespace Asesorias_API_MVC.Services.Implementations
             return pendingApplications;
         }
 
-        public async Task<GenericResponseDto> ReviewAsesorApplicationAsync(string userId, bool approve)
+        // --- CORRECCIÓN AQUÍ: int userId ---
+        public async Task<GenericResponseDto> ReviewAsesorApplicationAsync(int userId, bool approve)
         {
+            // FindAsync funciona directo con int porque la PK de Asesores ahora es int
             var application = await _context.Asesores.FindAsync(userId);
 
             if (application == null || application.IsActive == false)
@@ -64,7 +66,10 @@ namespace Asesorias_API_MVC.Services.Implementations
             if (approve)
             {
                 application.EstaAprobado = true;
-                var user = await _userManager.FindByIdAsync(userId);
+
+                // UserManager siempre espera string, así que convertimos el int
+                var user = await _userManager.FindByIdAsync(userId.ToString());
+
                 if (user != null)
                 {
                     await _userManager.AddToRoleAsync(user, "Asesor");
@@ -80,16 +85,12 @@ namespace Asesorias_API_MVC.Services.Implementations
             }
         }
 
-        // --- LÓGICA DEL DASHBOARD (Estadísticas Generales) ---
         public async Task<DashboardStatsDto> GetDashboardStatsAsync()
         {
-            // 1. Datos de SQL Server (AppDB)
             var totalUsuarios = await _context.Users.CountAsync(u => u.IsActive);
             var totalAsesores = await _context.Asesores.CountAsync(a => a.EstaAprobado && a.IsActive);
             var totalCursos = await _context.Cursos.CountAsync(c => c.EstaPublicado && c.IsActive);
 
-            // 2. Datos de PostgreSQL (AnalyticsDB)
-            // Usamos el 2do DbContext, es más eficiente que el Linked Server para esto.
             var ingresosTotales = await _analyticsDb.HistorialDePagos.SumAsync(p => p.Monto);
             var calificacionesTotales = await _analyticsDb.Calificaciones.CountAsync();
 
@@ -110,7 +111,6 @@ namespace Asesorias_API_MVC.Services.Implementations
             };
         }
 
-        // --- LÓGICA DEL DASHBOARD (Rating de Asesores - ¡LINKED SERVER!) ---
         public async Task<IEnumerable<AsesorRatingDto>> GetAsesorDashboardAsync()
         {
             var query = @"
@@ -118,8 +118,6 @@ namespace Asesorias_API_MVC.Services.Implementations
                     a.UsuarioId AS AsesorId,
                     u.UserName AS NombreAsesor,
                     COUNT(DISTINCT c.CursoId) AS TotalCursos,
-                    
-                    -- ¡CORRECCIÓN! Agregamos los stats por asesor
                     COALESCE(SUM(pg_stats.TotalCalificaciones), 0) AS TotalCalificaciones,
                     COALESCE(AVG(pg_stats.RatingPromedio), 0.0) AS RatingPromedio,
                     COALESCE(SUM(pg_stats.IngresosGenerados), 0.0) AS IngresosGenerados
@@ -130,12 +128,11 @@ namespace Asesorias_API_MVC.Services.Implementations
                 LEFT JOIN
                     dbo.Cursos c ON a.UsuarioId = c.AsesorId AND c.IsActive = 1
                 LEFT JOIN (
-                    -- Subconsulta de PostgreSQL (sin cambios)
                     SELECT
                         CAST(""CursoId"" AS INT) AS CursoId,
                         COUNT(*) AS TotalCalificaciones,
                         AVG(CAST(""Rating"" AS FLOAT)) AS RatingPromedio,
-                        SUM(""Monto"") AS IngresosGenerados
+                        SUM(""Monto"" ) AS IngresosGenerados
                     FROM OPENQUERY(POSTGRES_ANALYTICS, 
                         'SELECT c.""CursoId"", c.""Rating"", p.""Monto""
                          FROM ""public"".""Calificaciones"" c
@@ -145,8 +142,6 @@ namespace Asesorias_API_MVC.Services.Implementations
                 ) AS pg_stats ON c.CursoId = pg_stats.CursoId
                 WHERE
                     a.EstaAprobado = 1 AND a.IsActive = 1
-                
-                -- ¡CORRECCIÓN! Agrupamos solo por Asesor
                 GROUP BY
                     a.UsuarioId, u.UserName
                 ORDER BY
@@ -158,6 +153,81 @@ namespace Asesorias_API_MVC.Services.Implementations
                 .ToListAsync();
 
             return results;
+        }
+
+        public async Task<IEnumerable<MonthlyStatsDto>> GetMonthlyRevenueAsync()
+        {
+            var anioActual = DateTime.UtcNow.Year;
+
+            var pagosPorMes = await _analyticsDb.HistorialDePagos
+                .Where(p => p.FechaPago.Year == anioActual)
+                .GroupBy(p => p.FechaPago.Month)
+                .Select(g => new { Mes = g.Key, Total = g.Sum(x => x.Monto) })
+                .ToListAsync();
+
+            var resultado = new List<MonthlyStatsDto>();
+            string[] nombresMeses = { "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic" };
+
+            for (int i = 1; i <= 12; i++)
+            {
+                var datosMes = pagosPorMes.FirstOrDefault(p => p.Mes == i);
+                resultado.Add(new MonthlyStatsDto
+                {
+                    Mes = nombresMeses[i - 1],
+                    Ingresos = datosMes?.Total ?? 0
+                });
+            }
+
+            return resultado;
+        }
+
+        // --- CORRECCIÓN: int asesorId ---
+        public async Task<AsesorDetailFullDto> GetAsesorDetailsAsync(int asesorId)
+        {
+            var asesor = await _context.Asesores
+                .Include(a => a.Usuario)
+                .Include(a => a.Cursos)
+                    .ThenInclude(c => c.Inscripciones)
+                .FirstOrDefaultAsync(a => a.UsuarioId == asesorId);
+
+            if (asesor == null) return null;
+
+            var cursoIds = asesor.Cursos.Select(c => c.CursoId).ToList();
+
+            var stats = await _analyticsDb.HistorialDePagos
+                .Where(p => cursoIds.Contains(p.CursoId))
+                .SumAsync(p => p.Monto);
+
+            var rating = 0.0;
+            var countRatings = await _analyticsDb.Calificaciones
+                .Where(c => cursoIds.Contains(c.CursoId))
+                .CountAsync();
+
+            if (countRatings > 0)
+            {
+                rating = await _analyticsDb.Calificaciones
+                    .Where(c => cursoIds.Contains(c.CursoId))
+                    .AverageAsync(c => c.Rating);
+            }
+
+            return new AsesorDetailFullDto
+            {
+                NombreCompleto = asesor.Usuario.NombreCompleto ?? asesor.Usuario.UserName,
+                Email = asesor.Usuario.Email,
+                Telefono = asesor.Usuario.PhoneNumber ?? "N/A",
+                Especialidad = asesor.Especialidad,
+                TotalCursos = asesor.Cursos.Count,
+                TotalEstudiantes = asesor.Cursos.Sum(c => c.Inscripciones.Count),
+                TotalIngresos = stats,
+                RatingPromedio = rating,
+                Cursos = asesor.Cursos.Select(c => new CursoSimpleDto
+                {
+                    Titulo = c.Titulo,
+                    Costo = c.Costo,
+                    Estado = c.EstaPublicado,
+                    Inscritos = c.Inscripciones.Count
+                }).ToList()
+            };
         }
     }
 }

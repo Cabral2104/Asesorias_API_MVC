@@ -19,7 +19,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- LÓGICA DE INSCRIPCIÓN ACTUALIZADA ---
-        public async Task<GenericResponseDto> InscribirseACursoAsync(int cursoId, string estudianteId)
+        public async Task<GenericResponseDto> InscribirseACursoAsync(int cursoId, int estudianteId)
         {
             // 1. Verificamos en SQL Server que el curso existe y está publicado
             var curso = await _appDb.Cursos
@@ -76,7 +76,7 @@ namespace Asesorias_API_MVC.Services.Implementations
         }
 
         // --- LÓGICA PARA VER "MIS CURSOS" (SIN CAMBIOS) ---
-        public async Task<IEnumerable<CursoPublicDto>> GetMisCursosAsync(string estudianteId)
+        public async Task<IEnumerable<CursoPublicDto>> GetMisCursosAsync(int estudianteId)
         {
             var misInscripciones = await _appDb.Inscripciones
                 .Where(i => i.EstudianteId == estudianteId && i.IsActive)

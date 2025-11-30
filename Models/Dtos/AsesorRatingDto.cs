@@ -2,7 +2,7 @@
 {
     public class AsesorRatingDto
     {
-        public string AsesorId { get; set; }
+        public int AsesorId { get; set; }
         public string NombreAsesor { get; set; }
         public int TotalCursos { get; set; }
         public int TotalCalificaciones { get; set; }

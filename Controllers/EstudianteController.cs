@@ -1,14 +1,12 @@
 ﻿using Asesorias_API_MVC.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Asesorias_API_MVC.Controllers
 {
     [Route("api/estudiante")]
     [ApiController]
-    // Protegemos todo el controlador. Solo usuarios con estos roles pueden entrar.
     [Authorize(Roles = "Estudiante,Admin")]
     public class EstudianteController : ControllerBase
     {
@@ -19,12 +17,12 @@ namespace Asesorias_API_MVC.Controllers
             _estudianteService = estudianteService;
         }
 
-        // GET: /api/estudiante/mis-cursos
         [HttpGet("mis-cursos")]
         public async Task<IActionResult> GetMisCursos()
         {
-            var estudianteId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(estudianteId))
+            // PATRÓN DE PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int estudianteId))
             {
                 return Unauthorized();
             }

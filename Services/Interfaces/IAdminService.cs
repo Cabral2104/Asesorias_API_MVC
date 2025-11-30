@@ -5,8 +5,10 @@ namespace Asesorias_API_MVC.Services.Interfaces
     public interface IAdminService
     {
         Task<IEnumerable<SolicitudAsesorDto>> GetPendingAsesorApplicationsAsync();
-        Task<GenericResponseDto> ReviewAsesorApplicationAsync(string userId, bool approve);
+        Task<GenericResponseDto> ReviewAsesorApplicationAsync(int userId, bool approve);
         Task<DashboardStatsDto> GetDashboardStatsAsync();
         Task<IEnumerable<AsesorRatingDto>> GetAsesorDashboardAsync();
+        Task<IEnumerable<MonthlyStatsDto>> GetMonthlyRevenueAsync();
+        Task<AsesorDetailFullDto> GetAsesorDetailsAsync(int asesorId);
     }
 }

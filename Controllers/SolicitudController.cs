@@ -8,7 +8,7 @@ namespace Asesorias_API_MVC.Controllers
 {
     [Route("api/solicitud")]
     [ApiController]
-    [Authorize] // Login requerido para todo
+    [Authorize]
     public class SolicitudController : ControllerBase
     {
         private readonly ISolicitudService _solicitudService;
@@ -22,7 +22,10 @@ namespace Asesorias_API_MVC.Controllers
         [HttpPost("crear")]
         public async Task<IActionResult> CrearSolicitud([FromBody] SolicitudCreateDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId)) return Unauthorized();
+
             var result = await _solicitudService.CrearSolicitudAsync(dto, userId);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }
@@ -30,7 +33,10 @@ namespace Asesorias_API_MVC.Controllers
         [HttpGet("mis-solicitudes")]
         public async Task<IActionResult> GetMisSolicitudes()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId)) return Unauthorized();
+
             var result = await _solicitudService.GetMisSolicitudesAsync(userId);
             return Ok(result);
         }
@@ -38,7 +44,10 @@ namespace Asesorias_API_MVC.Controllers
         [HttpPost("aceptar-oferta/{ofertaId}")]
         public async Task<IActionResult> AceptarOferta(int ofertaId)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId)) return Unauthorized();
+
             var result = await _solicitudService.AceptarOfertaAsync(ofertaId, userId);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }
@@ -56,7 +65,10 @@ namespace Asesorias_API_MVC.Controllers
         [Authorize(Roles = "Asesor")]
         public async Task<IActionResult> CrearOferta(int solicitudId, [FromBody] OfertaCreateDto dto)
         {
-            var asesorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int asesorId)) return Unauthorized();
+
             var result = await _solicitudService.CrearOfertaAsync(solicitudId, dto, asesorId);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }

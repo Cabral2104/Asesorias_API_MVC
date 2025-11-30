@@ -13,7 +13,7 @@ namespace Asesorias_API_MVC.Models
         // public DateTime FechaInscripcion { get; set; } = DateTime.UtcNow;
 
         [Required]
-        public string EstudianteId { get; set; }
+        public int EstudianteId { get; set; }
         public int CursoId { get; set; }
 
         // --- Propiedades de Borrado Lógico y Auditoría ---

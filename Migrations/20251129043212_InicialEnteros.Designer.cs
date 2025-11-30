@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Asesorias_API_MVC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251108192136_UpdateAsesorFieldsToDetailed")]
-    partial class UpdateAsesorFieldsToDetailed
+    [Migration("20251129043212_InicialEnteros")]
+    partial class InicialEnteros
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,8 +27,8 @@ namespace Asesorias_API_MVC.Migrations
 
             modelBuilder.Entity("Asesorias_API_MVC.Models.Asesor", b =>
                 {
-                    b.Property<string>("UsuarioId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("AnioGraduacion")
                         .HasColumnType("int");
@@ -100,9 +100,8 @@ namespace Asesorias_API_MVC.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CursoId"));
 
-                    b.Property<string>("AsesorId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("AsesorId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Costo")
                         .HasColumnType("decimal(10, 2)");
@@ -136,6 +135,31 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("Cursos");
                 });
 
+            modelBuilder.Entity("Asesorias_API_MVC.Models.Dtos.AsesorRatingDto", b =>
+                {
+                    b.Property<int>("AsesorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("IngresosGenerados")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NombreAsesor")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("RatingPromedio")
+                        .HasColumnType("float");
+
+                    b.Property<int>("TotalCalificaciones")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalCursos")
+                        .HasColumnType("int");
+
+                    b.ToTable("AsesorRatingDto");
+                });
+
             modelBuilder.Entity("Asesorias_API_MVC.Models.Inscripcion", b =>
                 {
                     b.Property<int>("InscripcionId")
@@ -150,9 +174,8 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<int>("CursoId")
                         .HasColumnType("int");
 
-                    b.Property<string>("EstudianteId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("EstudianteId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -208,6 +231,49 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("Lecciones");
                 });
 
+            modelBuilder.Entity("Asesorias_API_MVC.Models.OfertaSolicitud", b =>
+                {
+                    b.Property<int>("OfertaId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OfertaId"));
+
+                    b.Property<int>("AsesorId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("FueAceptada")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Mensaje")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("PrecioOferta")
+                        .HasColumnType("decimal(10, 2)");
+
+                    b.Property<int>("SolicitudId")
+                        .HasColumnType("int");
+
+                    b.HasKey("OfertaId");
+
+                    b.HasIndex("AsesorId");
+
+                    b.HasIndex("SolicitudId");
+
+                    b.ToTable("OfertasSolicitud");
+                });
+
             modelBuilder.Entity("Asesorias_API_MVC.Models.SolicitudDeAyuda", b =>
                 {
                     b.Property<int>("SolicitudId")
@@ -216,8 +282,8 @@ namespace Asesorias_API_MVC.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SolicitudId"));
 
-                    b.Property<string>("AsesorAsignadoId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int?>("AsesorAsignadoId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -232,9 +298,8 @@ namespace Asesorias_API_MVC.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("EstudianteId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("EstudianteId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -258,8 +323,11 @@ namespace Asesorias_API_MVC.Migrations
 
             modelBuilder.Entity("Asesorias_API_MVC.Models.Usuario", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
@@ -292,6 +360,11 @@ namespace Asesorias_API_MVC.Migrations
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("NombreCompleto")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -333,10 +406,13 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -360,7 +436,7 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("AspNetRoles", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -374,9 +450,8 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<string>("ClaimValue")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("RoleId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -385,7 +460,7 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("AspNetRoleClaims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<int>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -399,9 +474,8 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<string>("ClaimValue")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -410,7 +484,7 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("AspNetUserClaims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
                 {
                     b.Property<string>("LoginProvider")
                         .HasColumnType("nvarchar(450)");
@@ -421,9 +495,8 @@ namespace Asesorias_API_MVC.Migrations
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("LoginProvider", "ProviderKey");
 
@@ -432,13 +505,13 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("AspNetUserLogins", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
                 {
-                    b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
-                    b.Property<string>("RoleId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
 
                     b.HasKey("UserId", "RoleId");
 
@@ -447,10 +520,10 @@ namespace Asesorias_API_MVC.Migrations
                     b.ToTable("AspNetUserRoles", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
                 {
-                    b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.Property<string>("LoginProvider")
                         .HasColumnType("nvarchar(450)");
@@ -518,6 +591,25 @@ namespace Asesorias_API_MVC.Migrations
                     b.Navigation("Curso");
                 });
 
+            modelBuilder.Entity("Asesorias_API_MVC.Models.OfertaSolicitud", b =>
+                {
+                    b.HasOne("Asesorias_API_MVC.Models.Asesor", "Asesor")
+                        .WithMany()
+                        .HasForeignKey("AsesorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Asesorias_API_MVC.Models.SolicitudDeAyuda", "Solicitud")
+                        .WithMany("Ofertas")
+                        .HasForeignKey("SolicitudId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Asesor");
+
+                    b.Navigation("Solicitud");
+                });
+
             modelBuilder.Entity("Asesorias_API_MVC.Models.SolicitudDeAyuda", b =>
                 {
                     b.HasOne("Asesorias_API_MVC.Models.Asesor", "AsesorAsignado")
@@ -535,16 +627,16 @@ namespace Asesorias_API_MVC.Migrations
                     b.Navigation("Estudiante");
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<int>", b =>
                 {
                     b.HasOne("Asesorias_API_MVC.Models.Usuario", null)
                         .WithMany()
@@ -553,7 +645,7 @@ namespace Asesorias_API_MVC.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
                 {
                     b.HasOne("Asesorias_API_MVC.Models.Usuario", null)
                         .WithMany()
@@ -562,9 +654,9 @@ namespace Asesorias_API_MVC.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -577,7 +669,7 @@ namespace Asesorias_API_MVC.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
                 {
                     b.HasOne("Asesorias_API_MVC.Models.Usuario", null)
                         .WithMany()
@@ -598,6 +690,11 @@ namespace Asesorias_API_MVC.Migrations
                     b.Navigation("Inscripciones");
 
                     b.Navigation("Lecciones");
+                });
+
+            modelBuilder.Entity("Asesorias_API_MVC.Models.SolicitudDeAyuda", b =>
+                {
+                    b.Navigation("Ofertas");
                 });
 
             modelBuilder.Entity("Asesorias_API_MVC.Models.Usuario", b =>

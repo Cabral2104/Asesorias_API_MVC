@@ -130,5 +130,35 @@ namespace Asesorias_API_MVC.Controllers
             if (!result.IsSuccess) return BadRequest(result);
             return Ok(result);
         }
+
+        // --- NUEVO: Obtener detalle de mi curso (GET /api/curso/detalle/{id}) ---
+        [HttpGet("detalle/{id}")]
+        [Authorize(Roles = "Asesor")]
+        public async Task<IActionResult> GetCursoDetail(int id)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int asesorId)) return Unauthorized();
+
+            var curso = await _cursoService.GetCursoByIdForAsesorAsync(id, asesorId);
+
+            if (curso == null) return NotFound(new { Message = "Curso no encontrado o no te pertenece." });
+
+            return Ok(curso);
+        }
+
+        // --- NUEVO: Ver Reseñas de un curso (Solo Asesor Dueño) ---
+        // GET: /api/curso/{cursoId}/calificaciones
+        [HttpGet("{cursoId}/calificaciones")]
+        [Authorize(Roles = "Asesor")]
+        public async Task<IActionResult> GetCalificacionesCurso(int cursoId)
+        {
+            // PARSING INT
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int asesorId))
+                return Unauthorized();
+
+            var calificaciones = await _calificacionService.GetCalificacionesCursoAsync(cursoId, asesorId);
+            return Ok(calificaciones);
+        }
     }
 }

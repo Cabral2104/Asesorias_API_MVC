@@ -7,6 +7,8 @@ namespace Asesorias_API_MVC.Services.Interfaces
         // Obtener todas las lecciones de un curso
         Task<IEnumerable<LeccionPublicDto>> GetLeccionesByCursoIdAsync(int cursoId);
 
+        Task<IEnumerable<LeccionPublicDto>> GetLeccionesForAsesorAsync(int cursoId, int asesorId);
+
         // Agregar una lección a un curso (solo el dueño)
         Task<GenericResponseDto> AddLeccionToCursoAsync(int cursoId, LeccionCreateDto dto, int asesorId);
 

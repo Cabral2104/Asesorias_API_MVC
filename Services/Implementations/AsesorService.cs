@@ -87,5 +87,42 @@ namespace Asesorias_API_MVC.Services.Implementations
 
             return new GenericResponseDto { IsSuccess = true, Message = "Solicitud enviada correctamente." };
         }
+
+        public async Task<IEnumerable<ChartStatDto>> GetActivityChartAsync(int asesorId)
+        {
+            var fechaLimite = DateTime.UtcNow.AddDays(-6).Date; // Últimos 7 días incluyendo hoy
+
+            // 1. Obtener inscripciones crudas de la BD (Filtradas por fecha y asesor)
+            // Hacemos el filtro en BD, pero el agrupamiento en memoria para evitar errores de traducción de fechas en EF Core
+            var inscripcionesRecientes = await _context.Inscripciones
+                .Include(i => i.Curso)
+                .Where(i => i.Curso.AsesorId == asesorId && i.CreatedAt >= fechaLimite && i.IsActive)
+                .Select(i => i.CreatedAt)
+                .ToListAsync();
+
+            // 2. Agrupar en Memoria
+            var actividad = inscripcionesRecientes
+                .GroupBy(fecha => fecha.ToLocalTime().Date)
+                .Select(g => new { Fecha = g.Key, Total = g.Count() })
+                .ToList();
+
+            // 3. Rellenar los días vacíos (para que la gráfica se vea continua)
+            var resultado = new List<ChartStatDto>();
+            var diasSemana = new string[] { "Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab" };
+
+            for (int i = 0; i < 7; i++)
+            {
+                var fechaActual = fechaLimite.AddDays(i);
+                var datoEncontrado = actividad.FirstOrDefault(a => a.Fecha == fechaActual);
+
+                resultado.Add(new ChartStatDto
+                {
+                    Dia = diasSemana[(int)fechaActual.DayOfWeek], // Obtiene el nombre del día
+                    Cantidad = datoEncontrado?.Total ?? 0
+                });
+            }
+
+            return resultado;
+        }
     }
 }

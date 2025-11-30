@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Asesorias_API_MVC.Data
 {
-    // CAMBIO CLAVE: <Usuario, IdentityRole<int>, int>
     public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>, int>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
@@ -20,6 +19,7 @@ namespace Asesorias_API_MVC.Data
         public DbSet<Inscripcion> Inscripciones { get; set; }
         public DbSet<SolicitudDeAyuda> SolicitudesDeAyuda { get; set; }
         public DbSet<OfertaSolicitud> OfertasSolicitud { get; set; }
+        public DbSet<ProgresoLeccion> Progresos { get; set; } // La nueva tabla
 
         // --- INTERCEPTOR DE AUDITORÍA Y BORRADO LÓGICO ---
         private void OnBeforeSaveChanges()
@@ -29,7 +29,6 @@ namespace Asesorias_API_MVC.Data
 
             foreach (var entry in entries)
             {
-                // Auditoría
                 if (entry.Entity is IAuditable auditableEntity)
                 {
                     switch (entry.State)
@@ -44,7 +43,6 @@ namespace Asesorias_API_MVC.Data
                     }
                 }
 
-                // Borrado Lógico
                 if (entry.Entity is ISoftDeletable softDeletableEntity && entry.State == EntityState.Deleted)
                 {
                     entry.State = EntityState.Modified;
@@ -68,13 +66,12 @@ namespace Asesorias_API_MVC.Data
             OnBeforeSaveChanges();
             return base.SaveChangesAsync(cancellationToken);
         }
-        // ----------------------------------------------------
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // Filtros globales (Borrado Lógico)
+            // Filtros globales
             builder.Entity<Usuario>().HasQueryFilter(e => e.IsActive);
             builder.Entity<Asesor>().HasQueryFilter(e => e.IsActive);
             builder.Entity<Curso>().HasQueryFilter(e => e.IsActive);
@@ -83,58 +80,68 @@ namespace Asesorias_API_MVC.Data
             builder.Entity<SolicitudDeAyuda>().HasQueryFilter(e => e.IsActive);
             builder.Entity<OfertaSolicitud>().HasQueryFilter(e => e.IsActive);
 
-            // --- CONFIGURACIÓN DE RELACIONES (CON BORRADO SEGURO - RESTRICT) ---
-            // Esto evita el error de "cycles or multiple cascade paths" en SQL Server
+            // --- CONFIGURACIÓN DE RELACIONES ---
 
-            // Asesor -> Usuario
             builder.Entity<Asesor>()
                 .HasOne(a => a.Usuario)
                 .WithOne(u => u.Asesor)
-                .HasForeignKey<Asesor>(a => a.UsuarioId); // UsuarioId es int
+                .HasForeignKey<Asesor>(a => a.UsuarioId);
 
-            // Solicitud -> Estudiante
+            // Relaciones con RESTRICT para evitar ciclos
             builder.Entity<SolicitudDeAyuda>()
                 .HasOne(s => s.Estudiante)
                 .WithMany(u => u.Solicitudes)
                 .HasForeignKey(s => s.EstudianteId)
-                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Solicitud -> Asesor
             builder.Entity<SolicitudDeAyuda>()
                 .HasOne(s => s.AsesorAsignado)
                 .WithMany(a => a.SolicitudesAtendidas)
                 .HasForeignKey(s => s.AsesorAsignadoId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
 
-            // Inscripcion -> Estudiante
             builder.Entity<Inscripcion>()
                 .HasOne(i => i.Estudiante)
                 .WithMany(u => u.Inscripciones)
                 .HasForeignKey(i => i.EstudianteId)
-                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Inscripcion -> Curso
             builder.Entity<Inscripcion>()
                 .HasOne(i => i.Curso)
                 .WithMany(c => c.Inscripciones)
                 .HasForeignKey(i => i.CursoId)
-                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Ofertas -> Solicitud
             builder.Entity<OfertaSolicitud>()
                 .HasOne(o => o.Solicitud)
                 .WithMany(s => s.Ofertas)
                 .HasForeignKey(o => o.SolicitudId)
-                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Ofertas -> Asesor
             builder.Entity<OfertaSolicitud>()
                 .HasOne(o => o.Asesor)
                 .WithMany()
                 .HasForeignKey(o => o.AsesorId)
-                .OnDelete(DeleteBehavior.Restrict); // IMPORTANTE: Restrict
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Configuración del DTO sin llave (Dashboard)
+            // --- AQUÍ ESTÁ EL CAMBIO PARA CORREGIR EL ERROR ---
+            builder.Entity<ProgresoLeccion>()
+                .HasIndex(p => new { p.EstudianteId, p.LeccionId })
+                .IsUnique();
+
+            builder.Entity<ProgresoLeccion>()
+                .HasOne(p => p.Estudiante)
+                .WithMany()
+                .HasForeignKey(p => p.EstudianteId)
+                .OnDelete(DeleteBehavior.Restrict); // CAMBIADO A RESTRICT
+
+            builder.Entity<ProgresoLeccion>()
+                .HasOne(p => p.Leccion)
+                .WithMany()
+                .HasForeignKey(p => p.LeccionId)
+                .OnDelete(DeleteBehavior.Restrict); // CAMBIADO A RESTRICT
+            // ------------------------------------------------
+
             builder.Entity<AsesorRatingDto>(e =>
             {
                 e.HasNoKey();

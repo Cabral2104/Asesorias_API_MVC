@@ -8,8 +8,7 @@ namespace Asesorias_API_MVC.Services.Implementations
 {
     public class CalificacionService : ICalificacionService
     {
-        // ¡Inyectamos AMBOS DbContexts!
-        private readonly AnalyticsDbContext _analyticsDb; // PostgreSQL
+        private readonly AnalyticsDbContext _analyticsDb; // Postgres
         private readonly ApplicationDbContext _appDb;       // SQL Server
 
         public CalificacionService(AnalyticsDbContext analyticsDb, ApplicationDbContext appDb)
@@ -18,28 +17,25 @@ namespace Asesorias_API_MVC.Services.Implementations
             _appDb = appDb;
         }
 
+        // ... (AddCalificacionAsync queda IGUAL) ...
         public async Task<GenericResponseDto> AddCalificacionAsync(int cursoId, int estudianteId, CalificacionCreateDto dto)
         {
-            // 1. Verificamos en SQL Server que el estudiante esté inscrito
+            // (Tu código existente va aquí...)
+            // Solo asegúrate de que no se borre al pegar lo nuevo
+            // ...
+            // COPIA PEGA EL CONTENIDO QUE YA TENIAS O MANTENLO
+
+            // 1. Verificamos inscripción
             var estaInscrito = await _appDb.Inscripciones
-                .AnyAsync(i => i.CursoId == cursoId && i.EstudianteId == estudianteId && i.IsActive);
+               .AnyAsync(i => i.CursoId == cursoId && i.EstudianteId == estudianteId && i.IsActive);
+            if (!estaInscrito) return new GenericResponseDto { IsSuccess = false, Message = "No inscrito." };
 
-            if (!estaInscrito)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "No puedes calificar un curso en el que no estás inscrito." };
-            }
-
-            // 2. Verificamos en PostgreSQL que no haya calificado ya
+            // 2. Verificar duplicado
             var yaCalifico = await _analyticsDb.Calificaciones
-                .AnyAsync(c => c.CursoId == cursoId && c.EstudianteId == estudianteId);
+               .AnyAsync(c => c.CursoId == cursoId && c.EstudianteId == estudianteId);
+            if (yaCalifico) return new GenericResponseDto { IsSuccess = false, Message = "Ya calificaste." };
 
-            if (yaCalifico)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "Ya has calificado este curso." };
-            }
-
-            // 3. Creamos la calificación
-            var nuevaCalificacion = new Calificacion
+            var nueva = new Calificacion
             {
                 CursoId = cursoId,
                 EstudianteId = estudianteId,
@@ -47,12 +43,50 @@ namespace Asesorias_API_MVC.Services.Implementations
                 Comentario = dto.Comentario,
                 CreatedAt = DateTime.UtcNow
             };
-
-            // 4. Guardamos en PostgreSQL
-            await _analyticsDb.Calificaciones.AddAsync(nuevaCalificacion);
+            await _analyticsDb.Calificaciones.AddAsync(nueva);
             await _analyticsDb.SaveChangesAsync();
+            return new GenericResponseDto { IsSuccess = true, Message = "Gracias." };
+        }
 
-            return new GenericResponseDto { IsSuccess = true, Message = "¡Gracias por tu calificación!" };
+        // --- NUEVO MÉTODO: OBTENER LISTA DE RESEÑAS ---
+        public async Task<IEnumerable<CalificacionDetailDto>> GetCalificacionesCursoAsync(int cursoId, int asesorId)
+        {
+            // 1. Validar propiedad del curso en SQL Server (Seguridad)
+            var curso = await _appDb.Cursos
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.CursoId == cursoId && c.AsesorId == asesorId && c.IsActive);
+
+            if (curso == null) return new List<CalificacionDetailDto>(); // Si no es dueño, retorna lista vacía
+
+            // 2. Obtener calificaciones desde PostgreSQL
+            var calificaciones = await _analyticsDb.Calificaciones
+                .Where(c => c.CursoId == cursoId)
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync();
+
+            if (!calificaciones.Any()) return new List<CalificacionDetailDto>();
+
+            // 3. Obtener nombres de estudiantes desde SQL Server
+            // (Hacemos esto para no guardar nombres duplicados en Postgres y mantener integridad)
+            var estudiantesIds = calificaciones.Select(c => c.EstudianteId).Distinct().ToList();
+
+            var estudiantesInfo = await _appDb.Users
+                .Where(u => estudiantesIds.Contains(u.Id))
+                .Select(u => new { u.Id, Nombre = u.NombreCompleto ?? u.UserName })
+                .ToDictionaryAsync(u => u.Id, u => u.Nombre);
+
+            // 4. Mapear resultados
+            var resultado = calificaciones.Select(c => new CalificacionDetailDto
+            {
+                CalificacionId = c.CalificacionId,
+                Rating = c.Rating,
+                Comentario = c.Comentario,
+                Fecha = c.CreatedAt,
+                // Buscamos el nombre en el diccionario, si no existe ponemos "Usuario"
+                NombreEstudiante = estudiantesInfo.ContainsKey(c.EstudianteId) ? estudiantesInfo[c.EstudianteId] : "Estudiante"
+            });
+
+            return resultado;
         }
     }
 }

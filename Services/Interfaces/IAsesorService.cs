@@ -6,5 +6,7 @@ namespace Asesorias_API_MVC.Services.Interfaces
     {
         // Tarea para solicitar ser asesor
         Task<GenericResponseDto> ApplyToBeAsesorAsync(AsesorApplyDto dto, int userId);
+
+        Task<IEnumerable<ChartStatDto>> GetActivityChartAsync(int asesorId);
     }
 }

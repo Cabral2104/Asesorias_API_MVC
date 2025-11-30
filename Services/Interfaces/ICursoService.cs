@@ -24,5 +24,7 @@ namespace Asesorias_API_MVC.Services.Interfaces
         Task<GenericResponseDto> UpdateCursoAsync(int cursoId, CursoCreateDto dto, int asesorId);
 
         Task<GenericResponseDto> DeleteCursoAsync(int cursoId, int asesorId);
+
+        Task<CursoPublicDto?> GetCursoByIdForAsesorAsync(int cursoId, int asesorId);
     }
 }

@@ -9,5 +9,7 @@ namespace Asesorias_API_MVC.Services.Interfaces
 
         // Tarea para que un estudiante vea los cursos a los que está inscrito
         Task<IEnumerable<CursoPublicDto>> GetMisCursosAsync(int estudianteId);
+
+        Task<IEnumerable<HistorialPagoDto>> GetHistorialPagosAsync(int estudianteId);
     }
 }

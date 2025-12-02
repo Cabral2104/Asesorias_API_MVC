@@ -137,5 +137,32 @@ namespace Asesorias_API_MVC.Services.Implementations
 
             return misInscripciones;
         }
+
+        public async Task<IEnumerable<HistorialPagoDto>> GetHistorialPagosAsync(int estudianteId)
+        {
+            // 1. Obtener pagos de Postgres
+            var pagos = await _analyticsDb.HistorialDePagos
+                .Where(p => p.EstudianteId == estudianteId)
+                .OrderByDescending(p => p.FechaPago)
+                .ToListAsync();
+
+            if (!pagos.Any()) return new List<HistorialPagoDto>();
+
+            // 2. Obtener nombres de cursos de SQL Server
+            var cursoIds = pagos.Select(p => p.CursoId).Distinct().ToList();
+            var cursosInfo = await _appDb.Cursos
+                .Where(c => cursoIds.Contains(c.CursoId))
+                .ToDictionaryAsync(c => c.CursoId, c => c.Titulo);
+
+            // 3. Mapear
+            return pagos.Select(p => new HistorialPagoDto
+            {
+                PagoId = p.PagoId,
+                NombreCurso = cursosInfo.ContainsKey(p.CursoId) ? cursosInfo[p.CursoId] : "Curso eliminado",
+                Monto = p.Monto,
+                MetodoPago = p.MetodoPago,
+                FechaPago = p.FechaPago
+            });
+        }
     }
 }

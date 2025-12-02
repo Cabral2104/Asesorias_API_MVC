@@ -13,6 +13,8 @@ namespace Asesorias_API_MVC.Data
         public DbSet<Calificacion> Calificaciones { get; set; }
 
         public DbSet<HistorialPago> HistorialDePagos { get; set; }
+
+        public DbSet<AuditoriaAccion> Auditorias { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -26,6 +28,9 @@ namespace Asesorias_API_MVC.Data
                 // Definimos la precisión del decimal, buena práctica
                 entity.Property(e => e.Monto).HasColumnType("decimal(10, 2)");
             });
+
+            // Mapeo de Auditoría
+            modelBuilder.Entity<AuditoriaAccion>().ToTable("AuditoriaAcciones");
         }
     }
 }

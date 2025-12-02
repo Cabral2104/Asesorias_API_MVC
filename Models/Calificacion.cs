@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Asesorias_API_MVC.Models
 {
-    // Este modelo representa la tabla en PostgreSQL
     [Table("Calificaciones")]
     public class Calificacion
     {
@@ -12,10 +11,16 @@ namespace Asesorias_API_MVC.Models
         public int CalificacionId { get; set; }
 
         [Column("CursoId")]
-        public int CursoId { get; set; } // FK "lógica" a SQL Server
+        public int? CursoId { get; set; } // <--- AHORA ES NULLABLE (int?)
+
+        [Column("SolicitudId")]
+        public int? SolicitudId { get; set; } // <--- NUEVO
 
         [Column("EstudianteId")]
-        public int EstudianteId { get; set; } // FK "lógica" a SQL Server
+        public int EstudianteId { get; set; }
+
+        [Column("AsesorId")]
+        public int AsesorId { get; set; } // <--- NUEVO (Requerido para el promedio global)
 
         [Column("Rating")]
         public int Rating { get; set; }

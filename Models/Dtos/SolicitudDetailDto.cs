@@ -3,13 +3,14 @@
     public class SolicitudDetailDto
     {
         public int SolicitudId { get; set; }
+        public string Materia { get; set; } // Nuevo
         public string Tema { get; set; }
         public string Descripcion { get; set; }
+        public DateTime FechaLimite { get; set; } // Nuevo
+        public string? ArchivoUrl { get; set; } // Nuevo
         public string Estado { get; set; }
         public string NombreEstudiante { get; set; }
         public DateTime FechaCreacion { get; set; }
-
-        // Lista de ofertas
         public List<OfertaDto> Ofertas { get; set; }
     }
 

@@ -8,5 +8,9 @@ namespace Asesorias_API_MVC.Services.Interfaces
         Task<GenericResponseDto> ApplyToBeAsesorAsync(AsesorApplyDto dto, int userId);
 
         Task<IEnumerable<ChartStatDto>> GetActivityChartAsync(int asesorId);
+
+        Task<IEnumerable<AsesorJobsDto>> GetMyJobsAsync(int asesorId);
+
+        Task<AsesorPublicProfileDto?> GetPublicProfileAsync(int asesorId);
     }
 }

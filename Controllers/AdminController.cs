@@ -77,5 +77,12 @@ namespace Asesorias_API_MVC.Controllers
             if (data == null) return NotFound();
             return Ok(data);
         }
+
+        [HttpGet("asesorias-stats")]
+        public async Task<IActionResult> GetAsesoriasStats()
+        {
+            var stats = await _adminService.GetAsesoriasGlobalStatsAsync();
+            return Ok(stats);
+        }
     }
 }

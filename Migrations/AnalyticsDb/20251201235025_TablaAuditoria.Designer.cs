@@ -3,6 +3,7 @@ using System;
 using Asesorias_API_MVC.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Asesorias_API_MVC.Migrations.AnalyticsDb
 {
     [DbContext(typeof(AnalyticsDbContext))]
-    partial class AnalyticsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251201235025_TablaAuditoria")]
+    partial class TablaAuditoria
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -63,10 +66,6 @@ namespace Asesorias_API_MVC.Migrations.AnalyticsDb
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CalificacionId"));
 
-                    b.Property<int>("AsesorId")
-                        .HasColumnType("integer")
-                        .HasColumnName("AsesorId");
-
                     b.Property<string>("Comentario")
                         .IsRequired()
                         .HasColumnType("text")
@@ -76,7 +75,7 @@ namespace Asesorias_API_MVC.Migrations.AnalyticsDb
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("CreatedAt");
 
-                    b.Property<int?>("CursoId")
+                    b.Property<int>("CursoId")
                         .HasColumnType("integer")
                         .HasColumnName("CursoId");
 
@@ -87,10 +86,6 @@ namespace Asesorias_API_MVC.Migrations.AnalyticsDb
                     b.Property<int>("Rating")
                         .HasColumnType("integer")
                         .HasColumnName("Rating");
-
-                    b.Property<int?>("SolicitudId")
-                        .HasColumnType("integer")
-                        .HasColumnName("SolicitudId");
 
                     b.HasKey("CalificacionId");
 

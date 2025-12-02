@@ -63,5 +63,24 @@ namespace Asesorias_API_MVC.Controllers
                 return StatusCode(500, new { Message = "Error calculando estadísticas: " + ex.Message });
             }
         }
+
+        [HttpGet("mis-trabajos")]
+        public async Task<IActionResult> GetMyJobs()
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int asesorId)) return Unauthorized();
+
+            var jobs = await _asesorService.GetMyJobsAsync(asesorId);
+            return Ok(jobs);
+        }
+
+        [HttpGet("public/{id}")]
+        [AllowAnonymous] // ¡Importante! Cualquiera puede verlo
+        public async Task<IActionResult> GetPublicProfile(int id)
+        {
+            var profile = await _asesorService.GetPublicProfileAsync(id);
+            if (profile == null) return NotFound();
+            return Ok(profile);
+        }
     }
 }

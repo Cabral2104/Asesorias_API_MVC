@@ -8,36 +8,46 @@ namespace Asesorias_API_MVC.Models
     {
         [Key]
         public int SolicitudId { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string Tema { get; set; }
-        [Required]
-        [MaxLength(1000)]
-        public string Descripcion { get; set; }
-        [Required]
-        [MaxLength(50)]
-        public string Estado { get; set; } = "Abierta";
-
-        // Eliminamos "FechaCreacion"
-        // public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
         [Required]
         public int EstudianteId { get; set; }
+
+        // --- CAMPOS NUEVOS ---
+        [Required]
+        [MaxLength(50)]
+        public string Materia { get; set; } // Ej: Matemáticas
+
+        [Required]
+        public DateTime FechaLimite { get; set; } // Para cuándo lo necesita
+
+        public string? ArchivoUrl { get; set; } // Link a Drive/Docs
+        // ---------------------
+
+        [Required]
+        [MaxLength(100)]
+        public string Tema { get; set; }
+
+        [Required]
+        [MaxLength(1000)]
+        public string Descripcion { get; set; }
+
+        [Required]
+        [MaxLength(50)]
+        public string Estado { get; set; } = "Abierta"; // Abierta, EnProceso, Finalizada
+
         public int? AsesorAsignadoId { get; set; }
 
-        // --- Propiedades de Borrado Lógico y Auditoría ---
+        // Auditoría estándar (IAuditable)
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime ModifiedAt { get; set; }
 
-        // --- Propiedades de Navegación ---
         [ForeignKey("EstudianteId")]
         public virtual Usuario Estudiante { get; set; }
 
         [ForeignKey("AsesorAsignadoId")]
         public virtual Asesor? AsesorAsignado { get; set; }
 
-        // --- Relación con las ofertas ---
         public virtual ICollection<OfertaSolicitud> Ofertas { get; set; }
     }
 }

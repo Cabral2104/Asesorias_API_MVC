@@ -361,3 +361,14 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# --- SEGURIDAD ---
+# Ignorar configuraciones con secretos
+appsettings.json
+appsettings.Development.json
+
+# Si usas secretos de usuario de .NET
+secrets.json
+
+# Logs
+*.log

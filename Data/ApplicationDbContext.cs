@@ -145,7 +145,11 @@ namespace Asesorias_API_MVC.Data
             builder.Entity<AsesorRatingDto>(e =>
             {
                 e.HasNoKey();
+                e.ToView(null); // <--- ESTA ES LA SOLUCIÓN. Le dice a EF que no cree tabla.
                 e.Property(p => p.IngresosGenerados).HasPrecision(18, 2);
+                // Las demás propiedades decimales también si las hubiera
+                e.Property(p => p.IngresosCursos).HasPrecision(18, 2);
+                e.Property(p => p.IngresosAsesorias).HasPrecision(18, 2);
             });
         }
     }

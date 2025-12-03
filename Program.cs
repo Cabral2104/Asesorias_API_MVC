@@ -156,8 +156,6 @@ app.UseHttpsRedirection();
 // Activar CORS (¡Importante para que React se conecte!)
 app.UseCors("AllowAll");
 
-app.UseStaticFiles(); // Para servir archivos de wwwroot si fuera necesario (imágenes, etc.)
-
 // Activar Autenticación y Autorización
 app.UseAuthentication();
 app.UseAuthorization();

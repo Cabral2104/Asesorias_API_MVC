@@ -30,5 +30,15 @@ namespace Asesorias_API_MVC.Controllers
             var misCursos = await _estudianteService.GetMisCursosAsync(estudianteId);
             return Ok(misCursos);
         }
+
+        [HttpGet("pagos")]
+        public async Task<IActionResult> GetHistorialPagos()
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId)) return Unauthorized();
+
+            var pagos = await _estudianteService.GetHistorialPagosAsync(userId);
+            return Ok(pagos);
+        }
     }
 }

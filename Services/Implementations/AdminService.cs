@@ -27,9 +27,9 @@ namespace Asesorias_API_MVC.Services.Implementations
                 .Include(a => a.Usuario)
                 .Select(a => new SolicitudAsesorDto
                 {
-                    UsuarioId = a.UsuarioId, // Ahora es int
-                    UserName = a.Usuario.UserName,
-                    Email = a.Usuario.Email,
+                    UsuarioId = a.UsuarioId,
+                    UserName = a.Usuario.UserName ?? "Sin Usuario",
+                    Email = a.Usuario.Email ?? "Sin Email",
                     Especialidad = a.Especialidad,
                     Descripcion = a.Descripcion,
                     NivelEstudios = a.NivelEstudios,
@@ -47,10 +47,8 @@ namespace Asesorias_API_MVC.Services.Implementations
             return pendingApplications;
         }
 
-        // --- CORRECCIÓN AQUÍ: int userId ---
         public async Task<GenericResponseDto> ReviewAsesorApplicationAsync(int userId, bool approve)
         {
-            // FindAsync funciona directo con int porque la PK de Asesores ahora es int
             var application = await _context.Asesores.FindAsync(userId);
 
             if (application == null || application.IsActive == false)
@@ -67,21 +65,23 @@ namespace Asesorias_API_MVC.Services.Implementations
             {
                 application.EstaAprobado = true;
 
-                // UserManager siempre espera string, así que convertimos el int
                 var user = await _userManager.FindByIdAsync(userId.ToString());
-
                 if (user != null)
                 {
                     await _userManager.AddToRoleAsync(user, "Asesor");
                 }
+
                 await _context.SaveChangesAsync();
-                return new GenericResponseDto { IsSuccess = true, Message = "Asesor aprobado exitosamente. Rol asignado." };
+                return new GenericResponseDto { IsSuccess = true, Message = "Asesor aprobado exitosamente." };
             }
             else
             {
-                _context.Asesores.Remove(application);
+                // Borrado lógico
+                application.IsActive = false;
+                _context.Asesores.Update(application);
                 await _context.SaveChangesAsync();
-                return new GenericResponseDto { IsSuccess = true, Message = "Solicitud rechazada y archivada." };
+
+                return new GenericResponseDto { IsSuccess = true, Message = "Solicitud rechazada." };
             }
         }
 
@@ -113,14 +113,22 @@ namespace Asesorias_API_MVC.Services.Implementations
 
         public async Task<IEnumerable<AsesorRatingDto>> GetAsesorDashboardAsync()
         {
+            // 1. TRAER LISTA BASE DE ASESORES Y SUS INGRESOS DE CURSOS (SQL Server + Postgres Linked)
+            // Nota: Quitamos los cálculos de rating de aquí para no confundirnos
             var query = @"
                 SELECT
                     a.UsuarioId AS AsesorId,
                     u.UserName AS NombreAsesor,
                     COUNT(DISTINCT c.CursoId) AS TotalCursos,
-                    COALESCE(SUM(pg_stats.TotalCalificaciones), 0) AS TotalCalificaciones,
-                    COALESCE(AVG(pg_stats.RatingPromedio), 0.0) AS RatingPromedio,
-                    COALESCE(SUM(pg_stats.IngresosGenerados), 0.0) AS IngresosGenerados
+                    
+                    -- Traemos solo los INGRESOS de cursos desde Postgres
+                    CAST(COALESCE(SUM(pg_pagos.IngresosGenerados), 0.0) AS DECIMAL(18,2)) AS IngresosCursos,
+
+                    -- Placeholders para llenar después
+                    0 AS TotalCalificaciones,
+                    CAST(0 AS FLOAT) AS RatingPromedio,
+                    CAST(0 AS DECIMAL(18,2)) AS IngresosAsesorias,
+                    CAST(0 AS DECIMAL(18,2)) AS IngresosGenerados
                 FROM
                     dbo.Asesores a
                 JOIN
@@ -130,39 +138,83 @@ namespace Asesorias_API_MVC.Services.Implementations
                 LEFT JOIN (
                     SELECT
                         CAST(""CursoId"" AS INT) AS CursoId,
-                        COUNT(*) AS TotalCalificaciones,
-                        AVG(CAST(""Rating"" AS FLOAT)) AS RatingPromedio,
-                        SUM(""Monto"" ) AS IngresosGenerados
+                        SUM(""Monto"") AS IngresosGenerados
                     FROM OPENQUERY(POSTGRES_ANALYTICS, 
-                        'SELECT c.""CursoId"", c.""Rating"", p.""Monto""
-                         FROM ""public"".""Calificaciones"" c
-                         JOIN ""public"".""HistorialDePagos"" p ON c.""CursoId"" = p.""CursoId""'
-                    ) AS pg_data
+                        'SELECT ""CursoId"", ""Monto"" FROM ""public"".""HistorialDePagos""'
+                    )
                     GROUP BY CAST(""CursoId"" AS INT)
-                ) AS pg_stats ON c.CursoId = pg_stats.CursoId
+                ) AS pg_pagos ON c.CursoId = pg_pagos.CursoId
                 WHERE
                     a.EstaAprobado = 1 AND a.IsActive = 1
                 GROUP BY
-                    a.UsuarioId, u.UserName
-                ORDER BY
-                    IngresosGenerados DESC, RatingPromedio DESC;
+                    a.UsuarioId, u.UserName;
             ";
 
             var results = await _context.Database
                 .SqlQueryRaw<AsesorRatingDto>(query)
                 .ToListAsync();
 
-            return results;
+            // 2. OBTENER RATING GLOBAL REAL (PostgreSQL - EF Core)
+            // Consultamos directo la tabla Calificaciones agrupando por AsesorId.
+            // Esto incluye Cursos (donde AsesorId se llenó) y Asesorías (donde AsesorId se llenó).
+            // ¡Es el promedio universal!
+            var ratingsReales = await _analyticsDb.Calificaciones
+                .GroupBy(c => c.AsesorId)
+                .Select(g => new {
+                    AsesorId = g.Key,
+                    Promedio = g.Average(c => (double)c.Rating),
+                    Total = g.Count()
+                })
+                .ToListAsync();
+
+            // 3. OBTENER INGRESOS DE ASESORÍAS (SQL Server)
+            var ingresosAsesorias = await _context.OfertasSolicitud
+                .Where(o => o.FueAceptada && o.IsActive)
+                .GroupBy(o => o.AsesorId)
+                .Select(g => new { AsesorId = g.Key, Total = g.Sum(o => o.PrecioOferta) })
+                .ToListAsync();
+
+            // 4. MERGE FINAL EN MEMORIA
+            foreach (var asesor in results)
+            {
+                // A. Asignar Rating Global Real
+                var statsRating = ratingsReales.FirstOrDefault(x => x.AsesorId == asesor.AsesorId);
+                if (statsRating != null)
+                {
+                    asesor.RatingPromedio = statsRating.Promedio;
+                    asesor.TotalCalificaciones = statsRating.Total;
+                }
+                else
+                {
+                    asesor.RatingPromedio = 0;
+                    asesor.TotalCalificaciones = 0;
+                }
+
+                // B. Sumar Ingresos
+                var extraIncome = ingresosAsesorias.FirstOrDefault(x => x.AsesorId == asesor.AsesorId);
+                asesor.IngresosAsesorias = extraIncome?.Total ?? 0;
+                asesor.IngresosGenerados = asesor.IngresosCursos + asesor.IngresosAsesorias;
+            }
+
+            return results.OrderByDescending(a => a.IngresosGenerados).ToList();
         }
 
         public async Task<IEnumerable<MonthlyStatsDto>> GetMonthlyRevenueAsync()
         {
             var anioActual = DateTime.UtcNow.Year;
 
-            var pagosPorMes = await _analyticsDb.HistorialDePagos
+            // 1. Ingresos Cursos (PostgreSQL)
+            var pagosCursos = await _analyticsDb.HistorialDePagos
                 .Where(p => p.FechaPago.Year == anioActual)
                 .GroupBy(p => p.FechaPago.Month)
                 .Select(g => new { Mes = g.Key, Total = g.Sum(x => x.Monto) })
+                .ToListAsync();
+
+            // 2. Ingresos Asesorías (SQL Server)
+            var pagosAsesorias = await _context.OfertasSolicitud
+                .Where(o => o.FueAceptada && o.IsActive && o.ModifiedAt.Year == anioActual)
+                .GroupBy(o => o.ModifiedAt.Month)
+                .Select(g => new { Mes = g.Key, Total = g.Sum(x => x.PrecioOferta) })
                 .ToListAsync();
 
             var resultado = new List<MonthlyStatsDto>();
@@ -170,63 +222,136 @@ namespace Asesorias_API_MVC.Services.Implementations
 
             for (int i = 1; i <= 12; i++)
             {
-                var datosMes = pagosPorMes.FirstOrDefault(p => p.Mes == i);
+                var datoCurso = pagosCursos.FirstOrDefault(p => p.Mes == i);
+                var datoAsesoria = pagosAsesorias.FirstOrDefault(p => p.Mes == i);
+
                 resultado.Add(new MonthlyStatsDto
                 {
                     Mes = nombresMeses[i - 1],
-                    Ingresos = datosMes?.Total ?? 0
+                    IngresosCursos = datoCurso?.Total ?? 0,
+                    IngresosAsesorias = datoAsesoria?.Total ?? 0
                 });
             }
 
             return resultado;
         }
 
-        // --- CORRECCIÓN: int asesorId ---
         public async Task<AsesorDetailFullDto> GetAsesorDetailsAsync(int asesorId)
         {
             var asesor = await _context.Asesores
                 .Include(a => a.Usuario)
-                .Include(a => a.Cursos)
-                    .ThenInclude(c => c.Inscripciones)
+                .Include(a => a.Cursos).ThenInclude(c => c.Inscripciones)
+                .Include(a => a.SolicitudesAtendidas).ThenInclude(s => s.Estudiante)
+                .Include(a => a.SolicitudesAtendidas).ThenInclude(s => s.Ofertas)
                 .FirstOrDefaultAsync(a => a.UsuarioId == asesorId);
 
-            if (asesor == null) return null;
+            if (asesor == null) return null!;
 
+            // 1. Ingresos Cursos (Postgres)
             var cursoIds = asesor.Cursos.Select(c => c.CursoId).ToList();
-
-            var stats = await _analyticsDb.HistorialDePagos
-                .Where(p => cursoIds.Contains(p.CursoId))
-                .SumAsync(p => p.Monto);
-
-            var rating = 0.0;
-            var countRatings = await _analyticsDb.Calificaciones
-                .Where(c => cursoIds.Contains(c.CursoId))
-                .CountAsync();
-
-            if (countRatings > 0)
+            decimal ingresosCursos = 0;
+            if (cursoIds.Any())
             {
-                rating = await _analyticsDb.Calificaciones
-                    .Where(c => cursoIds.Contains(c.CursoId))
-                    .AverageAsync(c => c.Rating);
+                ingresosCursos = await _analyticsDb.HistorialDePagos
+                    .Where(p => cursoIds.Contains(p.CursoId))
+                    .SumAsync(p => p.Monto);
             }
+
+            // 2. Ingresos Asesorías (SQL Server)
+            var ingresosAsesorias = asesor.SolicitudesAtendidas
+                .SelectMany(s => s.Ofertas)
+                .Where(o => o.AsesorId == asesorId && o.FueAceptada)
+                .Sum(o => o.PrecioOferta);
+
+            // 3. Rating Global
+            var rating = 0.0;
+
+            // Buscamos calificaciones por AsesorId (si implementaste ese cambio) o por cursos
+            // Asumiendo que tienes el campo AsesorId en Calificaciones:
+            var ratingsQuery = await _analyticsDb.Calificaciones
+                 .Where(c => c.AsesorId == asesorId)
+                 .Select(c => c.Rating)
+                 .ToListAsync();
+
+            // Si no tienes el campo AsesorId aún, usa el de cursos:
+            // var ratingsQuery = await _analyticsDb.Calificaciones.Where(c => cursoIds.Contains(c.CursoId.GetValueOrDefault())).Select(c => c.Rating).ToListAsync();
+
+            if (ratingsQuery.Any()) rating = ratingsQuery.Average();
 
             return new AsesorDetailFullDto
             {
-                NombreCompleto = asesor.Usuario.NombreCompleto ?? asesor.Usuario.UserName,
-                Email = asesor.Usuario.Email,
+                NombreCompleto = asesor.Usuario.NombreCompleto ?? asesor.Usuario.UserName ?? "Asesor",
+                Email = asesor.Usuario.Email ?? "Sin Email",
                 Telefono = asesor.Usuario.PhoneNumber ?? "N/A",
                 Especialidad = asesor.Especialidad,
+
                 TotalCursos = asesor.Cursos.Count,
-                TotalEstudiantes = asesor.Cursos.Sum(c => c.Inscripciones.Count),
-                TotalIngresos = stats,
+                TotalAsesorias = asesor.SolicitudesAtendidas.Count,
+                TotalEstudiantes = asesor.Cursos.Sum(c => c.Inscripciones.Count) + asesor.SolicitudesAtendidas.Count,
+                TotalIngresos = ingresosCursos + ingresosAsesorias,
                 RatingPromedio = rating,
+
                 Cursos = asesor.Cursos.Select(c => new CursoSimpleDto
                 {
                     Titulo = c.Titulo,
                     Costo = c.Costo,
                     Estado = c.EstaPublicado,
                     Inscritos = c.Inscripciones.Count
+                }).ToList(),
+
+                Asesorias = asesor.SolicitudesAtendidas.Select(s => {
+                    var oferta = s.Ofertas.FirstOrDefault(o => o.FueAceptada);
+                    return new AsesoriaSimpleDto
+                    {
+                        Tema = s.Tema,
+                        Materia = s.Materia,
+                        Precio = oferta?.PrecioOferta ?? 0,
+                        Fecha = s.ModifiedAt,
+                        Estudiante = s.Estudiante?.UserName ?? "Usuario"
+                    };
                 }).ToList()
+            };
+        }
+
+        public async Task<AdminAsesoriasStatsDto> GetAsesoriasGlobalStatsAsync()
+        {
+            var total = await _context.SolicitudesDeAyuda
+                .CountAsync(s => (s.Estado == "EnProceso" || s.Estado == "Finalizada") && s.IsActive);
+
+            var ingresos = await _context.OfertasSolicitud
+                .Where(o => o.FueAceptada && o.IsActive)
+                .SumAsync(o => o.PrecioOferta);
+
+            var ultimas = await _context.SolicitudesDeAyuda
+                .Where(s => (s.Estado == "EnProceso" || s.Estado == "Finalizada") && s.IsActive)
+                .Include(s => s.Estudiante)
+                .Include(s => s.Ofertas)
+                .OrderByDescending(s => s.ModifiedAt)
+                .Take(10)
+                .ToListAsync();
+
+            var listaDtos = ultimas.Select(s => {
+                var oferta = s.Ofertas.FirstOrDefault(o => o.FueAceptada);
+                return new AsesorJobsDto
+                {
+                    SolicitudId = s.SolicitudId,
+                    Materia = s.Materia,
+                    Tema = s.Tema,
+                    Descripcion = s.Descripcion,
+                    FechaLimite = s.FechaLimite,
+                    ArchivoUrl = s.ArchivoUrl ?? "",
+                    Precio = oferta?.PrecioOferta ?? 0,
+                    NombreEstudiante = s.Estudiante?.NombreCompleto ?? s.Estudiante?.UserName ?? "Usuario",
+                    EmailEstudiante = s.Estudiante?.Email ?? "",
+                    FechaAceptacion = s.ModifiedAt
+                };
+            }).ToList();
+
+            return new AdminAsesoriasStatsDto
+            {
+                TotalAsesoriasCerradas = total,
+                IngresosTotalesAsesorias = ingresos,
+                UltimasAsesorias = listaDtos
             };
         }
     }

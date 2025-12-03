@@ -10,5 +10,6 @@ namespace Asesorias_API_MVC.Services.Interfaces
         Task<IEnumerable<AsesorRatingDto>> GetAsesorDashboardAsync();
         Task<IEnumerable<MonthlyStatsDto>> GetMonthlyRevenueAsync();
         Task<AsesorDetailFullDto> GetAsesorDetailsAsync(int asesorId);
+        Task<AdminAsesoriasStatsDto> GetAsesoriasGlobalStatsAsync();
     }
 }

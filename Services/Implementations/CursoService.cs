@@ -9,173 +9,207 @@ namespace Asesorias_API_MVC.Services.Implementations
 {
     public class CursoService : ICursoService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ApplicationDbContext _context;      // SQL Server
+        private readonly AnalyticsDbContext _analyticsDb;    // PostgreSQL
         private readonly UserManager<Usuario> _userManager;
 
-        // Inyectamos el DbContext y el UserManager
-        public CursoService(ApplicationDbContext context, UserManager<Usuario> userManager)
+        public CursoService(ApplicationDbContext context, AnalyticsDbContext analyticsDb, UserManager<Usuario> userManager)
         {
             _context = context;
+            _analyticsDb = analyticsDb;
             _userManager = userManager;
         }
 
-        // --- LÓGICA PARA CREAR UN CURSO ---
+        // --- 1. CREAR CURSO ---
         public async Task<GenericResponseDto> CreateCursoAsync(CursoCreateDto dto, int asesorId)
         {
-            // Verificamos si el AsesorId (que viene del token) es válido
             var asesor = await _context.Asesores.FindAsync(asesorId);
             if (asesor == null || !asesor.EstaAprobado)
             {
-                return new GenericResponseDto { IsSuccess = false, Message = "No tienes permisos para crear cursos. Asegúrate de ser un asesor aprobado." };
+                return new GenericResponseDto { IsSuccess = false, Message = "No tienes permisos para crear cursos." };
             }
 
-            // Creamos el nuevo objeto Curso
             var nuevoCurso = new Curso
             {
                 Titulo = dto.Titulo,
                 Descripcion = dto.Descripcion,
                 Costo = dto.Costo,
-                AsesorId = asesorId, // Asignamos el ID del asesor desde el token
-                EstaPublicado = false // Por defecto, los cursos inician como borrador
-                // Los campos de auditoría (CreatedAt, IsActive) se llenan solos
+                AsesorId = asesorId,
+                EstaPublicado = false,
+                CreatedAt = DateTime.UtcNow,
+                ModifiedAt = DateTime.UtcNow,
+                IsActive = true
             };
 
             await _context.Cursos.AddAsync(nuevoCurso);
             await _context.SaveChangesAsync();
 
-            return new GenericResponseDto { IsSuccess = true, Message = "¡Curso creado exitosamente! Ahora puedes agregarle lecciones." };
+            return new GenericResponseDto { IsSuccess = true, Message = "Curso creado exitosamente." };
         }
 
-        // --- LÓGICA PARA VER EL CATÁLOGO PÚBLICO ---
+        // --- 2. VER CATÁLOGO PÚBLICO ---
         public async Task<IEnumerable<CursoPublicDto>> GetCursosPublicosAsync()
         {
-            var cursos = await _context.Cursos
-                .Where(c => c.EstaPublicado == true && c.IsActive == true) // Solo cursos activos y publicados
-                .Include(c => c.Asesor)       // Carga la entidad Asesor
-                    .ThenInclude(a => a.Usuario) // ¡Carga la entidad Usuario del Asesor!
-                .Select(c => new CursoPublicDto
+            // A. SQL Server
+            var cursosSQL = await _context.Cursos
+                .Where(c => c.EstaPublicado == true && c.IsActive == true)
+                .Include(c => c.Asesor.Usuario)
+                .ToListAsync();
+
+            // B. PostgreSQL (Ratings)
+            // CORRECCIÓN: Filtramos donde CursoId no sea nulo
+            var ratings = await _analyticsDb.Calificaciones
+                .Where(c => c.CursoId != null)
+                .GroupBy(c => c.CursoId)
+                .Select(g => new {
+                    CursoId = g.Key,
+                    Promedio = g.Average(c => c.Rating),
+                    Total = g.Count()
+                })
+                .ToListAsync();
+
+            // C. Combinar
+            var resultado = cursosSQL.Select(c => {
+                // Como g.Key es int?, comparamos con value o casteo seguro
+                var stats = ratings.FirstOrDefault(r => r.CursoId == c.CursoId);
+                return new CursoPublicDto
                 {
                     CursoId = c.CursoId,
                     Titulo = c.Titulo,
                     Descripcion = c.Descripcion,
                     Costo = c.Costo,
+                    EstaPublicado = c.EstaPublicado,
                     AsesorId = c.AsesorId,
-                    // Obtenemos el nombre del Usuario vinculado al Asesor
-                    AsesorNombre = c.Asesor.Usuario.UserName
-                })
-                .ToListAsync();
+                    AsesorNombre = c.Asesor.Usuario.UserName,
 
-            return cursos;
+                    PromedioCalificacion = stats?.Promedio ?? 0,
+                    TotalCalificaciones = stats?.Total ?? 0
+                };
+            });
+
+            return resultado;
         }
 
-        // --- LÓGICA PARA PUBLICAR UN CURSO ---
+        // --- 3. PUBLICAR / OCULTAR ---
         public async Task<GenericResponseDto> PublishCursoAsync(int cursoId, int asesorId)
         {
             var curso = await _context.Cursos.FindAsync(cursoId);
 
-            if (curso == null || curso.IsActive == false)
-            {
+            if (curso == null || !curso.IsActive)
                 return new GenericResponseDto { IsSuccess = false, Message = "El curso no existe." };
-            }
 
-            // ¡Validación de propiedad!
-            // Nos aseguramos de que el asesor que lo pide sea el dueño del curso
             if (curso.AsesorId != asesorId)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "No tienes permiso para modificar este curso." };
-            }
+                return new GenericResponseDto { IsSuccess = false, Message = "No autorizado." };
 
-            if (curso.EstaPublicado)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "Este curso ya está publicado." };
-            }
+            curso.EstaPublicado = !curso.EstaPublicado;
+            await _context.SaveChangesAsync();
 
-            curso.EstaPublicado = true;
-            await _context.SaveChangesAsync(); // El DbContext detecta el cambio y lo guarda
-
-            return new GenericResponseDto { IsSuccess = true, Message = "¡Curso publicado exitosamente!" };
+            string estado = curso.EstaPublicado ? "publicado" : "oculto";
+            return new GenericResponseDto { IsSuccess = true, Message = $"Curso {estado} exitosamente." };
         }
 
-        // --- NUEVO MÉTODO: Ver mis cursos ---
+        // --- 4. VER MIS CURSOS ---
         public async Task<IEnumerable<CursoPublicDto>> GetMyCursosAsync(int asesorId)
         {
+            // A. SQL
             var misCursos = await _context.Cursos
-                .Where(c => c.AsesorId == asesorId && c.IsActive == true) // Filtra por el ID del asesor
-                .Include(c => c.Asesor.Usuario) // Incluimos al usuario para obtener el nombre
-                .Select(c => new CursoPublicDto
+                .Where(c => c.AsesorId == asesorId && c.IsActive == true)
+                .Include(c => c.Asesor.Usuario)
+                .ToListAsync();
+
+            if (!misCursos.Any()) return new List<CursoPublicDto>();
+
+            // B. Postgres
+            var misIds = misCursos.Select(x => x.CursoId).ToList();
+
+            // CORRECCIÓN AQUÍ: Usamos .Value para comparar int con int? de forma segura
+            var ratings = await _analyticsDb.Calificaciones
+                .Where(c => c.CursoId != null && misIds.Contains(c.CursoId.Value))
+                .GroupBy(c => c.CursoId)
+                .Select(g => new {
+                    CursoId = g.Key,
+                    Promedio = g.Average(c => c.Rating),
+                    Total = g.Count()
+                })
+                .ToListAsync();
+
+            // C. Combinar
+            var resultado = misCursos.Select(c => {
+                var stats = ratings.FirstOrDefault(r => r.CursoId == c.CursoId);
+                return new CursoPublicDto
                 {
                     CursoId = c.CursoId,
                     Titulo = c.Titulo,
                     Descripcion = c.Descripcion,
                     Costo = c.Costo,
+                    EstaPublicado = c.EstaPublicado,
                     AsesorId = c.AsesorId,
-                    AsesorNombre = c.Asesor.Usuario.UserName
-                    // Podríamos añadir 'EstaPublicado' al DTO si quisiéramos
-                })
-                .ToListAsync();
+                    AsesorNombre = c.Asesor.Usuario.UserName,
 
-            return misCursos;
+                    PromedioCalificacion = stats?.Promedio ?? 0,
+                    TotalCalificaciones = stats?.Total ?? 0
+                };
+            });
+
+            return resultado;
         }
 
-        // --- NUEVO MÉTODO: Actualizar mi curso ---
+        // --- 5. ACTUALIZAR ---
         public async Task<GenericResponseDto> UpdateCursoAsync(int cursoId, CursoCreateDto dto, int asesorId)
         {
             var curso = await _context.Cursos.FindAsync(cursoId);
+            if (curso == null || !curso.IsActive) return new GenericResponseDto { IsSuccess = false, Message = "Curso no encontrado." };
+            if (curso.AsesorId != asesorId) return new GenericResponseDto { IsSuccess = false, Message = "No autorizado." };
 
-            if (curso == null || curso.IsActive == false)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "El curso no existe." };
-            }
-
-            // --- ¡VERIFICACIÓN DE PROPIEDAD! ---
-            // Nos aseguramos de que el asesor que lo pide sea el dueño del curso
-            if (curso.AsesorId != asesorId)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "No tienes permiso para modificar este curso." };
-            }
-
-            // Mapeamos los campos del DTO al modelo de la base de datos
             curso.Titulo = dto.Titulo;
             curso.Descripcion = dto.Descripcion;
             curso.Costo = dto.Costo;
-            // 'ModifiedAt' se actualizará automáticamente por nuestro DbContext
-
             await _context.SaveChangesAsync();
 
-            return new GenericResponseDto { IsSuccess = true, Message = "Curso actualizado exitosamente." };
+            return new GenericResponseDto { IsSuccess = true, Message = "Curso actualizado." };
         }
 
+        // --- 6. ELIMINAR ---
         public async Task<GenericResponseDto> DeleteCursoAsync(int cursoId, int asesorId)
         {
             var curso = await _context.Cursos
-                .Include(c => c.Lecciones) // ¡IMPORTANTE: Cargar las lecciones hijas!
+                .Include(c => c.Lecciones)
                 .FirstOrDefaultAsync(c => c.CursoId == cursoId && c.IsActive);
 
-            if (curso == null)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "El curso no existe." };
-            }
+            if (curso == null) return new GenericResponseDto { IsSuccess = false, Message = "Curso no encontrado." };
+            if (curso.AsesorId != asesorId) return new GenericResponseDto { IsSuccess = false, Message = "No autorizado." };
 
-            // --- ¡VERIFICACIÓN DE PROPIEDAD! ---
-            if (curso.AsesorId != asesorId)
-            {
-                return new GenericResponseDto { IsSuccess = false, Message = "No tienes permiso para eliminar este curso." };
-            }
-
-            // 1. Borrado lógico del Curso padre
-            // (Nuestro DbContext lo interceptará y pondrá IsActive = false)
             _context.Cursos.Remove(curso);
-
-            // 2. Borrado lógico en cascada de las Lecciones hijas
             foreach (var leccion in curso.Lecciones)
             {
-                // (Nuestro DbContext también interceptará cada uno de estos)
                 _context.Lecciones.Remove(leccion);
             }
-
             await _context.SaveChangesAsync();
 
-            return new GenericResponseDto { IsSuccess = true, Message = "Curso y todas sus lecciones han sido eliminados (desactivados)." };
+            return new GenericResponseDto { IsSuccess = true, Message = "Curso eliminado." };
+        }
+
+        // --- 7. DETALLE ---
+        public async Task<CursoPublicDto?> GetCursoByIdForAsesorAsync(int cursoId, int asesorId)
+        {
+            var curso = await _context.Cursos
+                .Include(c => c.Asesor.Usuario)
+                .FirstOrDefaultAsync(c => c.CursoId == cursoId && c.AsesorId == asesorId && c.IsActive);
+
+            if (curso == null) return null;
+
+            return new CursoPublicDto
+            {
+                CursoId = curso.CursoId,
+                Titulo = curso.Titulo,
+                Descripcion = curso.Descripcion,
+                Costo = curso.Costo,
+                EstaPublicado = curso.EstaPublicado,
+                AsesorId = curso.AsesorId,
+                AsesorNombre = curso.Asesor.Usuario.UserName,
+                PromedioCalificacion = 0,
+                TotalCalificaciones = 0
+            };
         }
     }
 }

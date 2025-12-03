@@ -121,5 +121,28 @@ namespace Asesorias_API_MVC.Services.Implementations
 
             return new GenericResponseDto { IsSuccess = true, Message = "Lección eliminada." };
         }
+
+        // --- NUEVO MÉTODO: Ver lecciones en modo edición (incluso si no está publicado) ---
+        public async Task<IEnumerable<LeccionPublicDto>> GetLeccionesForAsesorAsync(int cursoId, int asesorId)
+        {
+            // Verificamos propiedad del curso
+            var curso = await _context.Cursos
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.CursoId == cursoId && c.AsesorId == asesorId && c.IsActive);
+
+            if (curso == null) return new List<LeccionPublicDto>();
+
+            return await _context.Lecciones
+                .Where(l => l.CursoId == cursoId && l.IsActive)
+                .OrderBy(l => l.Orden)
+                .Select(l => new LeccionPublicDto
+                {
+                    LeccionId = l.LeccionId,
+                    Titulo = l.Titulo,
+                    ContenidoUrl = l.ContenidoUrl,
+                    Orden = l.Orden
+                })
+                .ToListAsync();
+        }
     }
 }

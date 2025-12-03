@@ -70,5 +70,17 @@ namespace Asesorias_API_MVC.Controllers
             if (!result.IsSuccess) return BadRequest(result);
             return Ok(result);
         }
+
+        // --- NUEVO: Ver lecciones para gestionar (GET /api/leccion/gestion/{cursoId}) ---
+        [HttpGet("gestion/{cursoId}")]
+        [Authorize(Roles = "Asesor")]
+        public async Task<IActionResult> GetLeccionesForManagement(int cursoId)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int asesorId)) return Unauthorized();
+
+            var lecciones = await _leccionService.GetLeccionesForAsesorAsync(cursoId, asesorId);
+            return Ok(lecciones);
+        }
     }
 }

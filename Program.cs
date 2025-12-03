@@ -121,6 +121,7 @@ builder.Services.AddScoped<IEstudianteService, EstudianteService>();
 builder.Services.AddScoped<ICalificacionService, CalificacionService>();
 builder.Services.AddScoped<ISolicitudService, SolicitudService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IProgresoService, ProgresoService>();
 
 // =========================================================
 // CONSTRUCCIÓN DE LA APLICACIÓN

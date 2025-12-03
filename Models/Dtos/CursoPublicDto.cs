@@ -12,5 +12,8 @@
         // Datos del Asesor
         public int AsesorId { get; set; }
         public string AsesorNombre { get; set; } // ¡Importante para el catálogo!
+
+        public double PromedioCalificacion { get; set; }
+        public int TotalCalificaciones { get; set; }
     }
 }

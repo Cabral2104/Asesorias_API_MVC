@@ -19,57 +19,94 @@ namespace Asesorias_API_MVC.Controllers
         }
 
         // --- ESTUDIANTE ---
-        [HttpPost("crear")]
-        public async Task<IActionResult> CrearSolicitud([FromBody] SolicitudCreateDto dto)
+
+        [HttpPost("custom/crear")] // <--- IMPORTANTE: custom/crear
+        [Authorize(Roles = "Estudiante")]
+        public async Task<IActionResult> CrearSolicitudCustom([FromBody] SolicitudCreateDto dto)
         {
-            // PARSING INT
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
             var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId)) return Unauthorized();
+            if (!int.TryParse(userIdString, out int userId)) return Unauthorized();
 
             var result = await _solicitudService.CrearSolicitudAsync(dto, userId);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }
 
-        [HttpGet("mis-solicitudes")]
-        public async Task<IActionResult> GetMisSolicitudes()
+        [HttpGet("custom/mis-solicitudes")] // <--- IMPORTANTE: custom/mis-solicitudes
+        [Authorize(Roles = "Estudiante")]
+        public async Task<IActionResult> GetMisSolicitudesCustom()
         {
-            // PARSING INT
             var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId)) return Unauthorized();
+            if (!int.TryParse(userIdString, out int userId)) return Unauthorized();
 
             var result = await _solicitudService.GetMisSolicitudesAsync(userId);
             return Ok(result);
         }
 
-        [HttpPost("aceptar-oferta/{ofertaId}")]
-        public async Task<IActionResult> AceptarOferta(int ofertaId)
+        [HttpPost("custom/aceptar-oferta/{ofertaId}")]
+        [Authorize(Roles = "Estudiante")]
+        public async Task<IActionResult> AceptarOfertaCustom(int ofertaId)
         {
-            // PARSING INT
             var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId)) return Unauthorized();
+            if (!int.TryParse(userIdString, out int userId)) return Unauthorized();
 
             var result = await _solicitudService.AceptarOfertaAsync(ofertaId, userId);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }
 
         // --- ASESOR ---
-        [HttpGet("disponibles")]
+        [HttpGet("custom/mercado")]
         [Authorize(Roles = "Asesor")]
-        public async Task<IActionResult> GetDisponibles()
+        public async Task<IActionResult> GetMercadoSolicitudes([FromQuery] string? materia)
         {
-            var result = await _solicitudService.GetSolicitudesDisponiblesAsync();
+            var result = await _solicitudService.GetSolicitudesDisponiblesAsync(materia);
             return Ok(result);
         }
 
-        [HttpPost("{solicitudId}/ofertar")]
+        [HttpPost("custom/{solicitudId}/ofertar")]
         [Authorize(Roles = "Asesor")]
-        public async Task<IActionResult> CrearOferta(int solicitudId, [FromBody] OfertaCreateDto dto)
+        public async Task<IActionResult> CrearOfertaCustom(int solicitudId, [FromBody] OfertaCreateDto dto)
         {
-            // PARSING INT
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
             var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int asesorId)) return Unauthorized();
+            if (!int.TryParse(userIdString, out int asesorId)) return Unauthorized();
 
             var result = await _solicitudService.CrearOfertaAsync(solicitudId, dto, asesorId);
+            return result.IsSuccess ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPut("custom/actualizar/{id}")]
+        [Authorize(Roles = "Estudiante")]
+        public async Task<IActionResult> UpdateSolicitud(int id, [FromBody] SolicitudUpdateDto dto)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId)) return Unauthorized();
+
+            var result = await _solicitudService.UpdateSolicitudAsync(id, dto, userId);
+            return result.IsSuccess ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpDelete("custom/eliminar/{id}")]
+        [Authorize(Roles = "Estudiante")]
+        public async Task<IActionResult> DeleteSolicitud(int id)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId)) return Unauthorized();
+
+            var result = await _solicitudService.DeleteSolicitudAsync(id, userId);
+            return result.IsSuccess ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPost("custom/finalizar/{id}")]
+        [Authorize(Roles = "Estudiante")]
+        public async Task<IActionResult> FinalizarSolicitud(int id, [FromBody] FinalizarSolicitudDto dto)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int userId)) return Unauthorized();
+
+            var result = await _solicitudService.FinalizarSolicitudAsync(id, dto, userId);
             return result.IsSuccess ? Ok(result) : BadRequest(result);
         }
     }

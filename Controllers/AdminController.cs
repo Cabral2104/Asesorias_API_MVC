@@ -79,9 +79,9 @@ namespace Asesorias_API_MVC.Controllers
         }
 
         [HttpGet("asesorias-stats")]
-        public async Task<IActionResult> GetAsesoriasStats()
+        public async Task<IActionResult> GetAsesoriasStats([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var stats = await _adminService.GetAsesoriasGlobalStatsAsync();
+            var stats = await _adminService.GetAsesoriasGlobalStatsAsync(page, pageSize);
             return Ok(stats);
         }
     }

@@ -313,21 +313,25 @@ namespace Asesorias_API_MVC.Services.Implementations
             };
         }
 
-        public async Task<AdminAsesoriasStatsDto> GetAsesoriasGlobalStatsAsync()
+        public async Task<AdminAsesoriasStatsDto> GetAsesoriasGlobalStatsAsync(int page = 1, int pageSize = 10)
         {
+            // 1. Total de registros (Para calcular páginas en el frontend)
             var total = await _context.SolicitudesDeAyuda
                 .CountAsync(s => (s.Estado == "EnProceso" || s.Estado == "Finalizada") && s.IsActive);
 
+            // 2. Ingresos Totales (Esta métrica siempre es global, no cambia por página)
             var ingresos = await _context.OfertasSolicitud
                 .Where(o => o.FueAceptada && o.IsActive)
                 .SumAsync(o => o.PrecioOferta);
 
+            // 3. Obtener solo los registros de la página actual
             var ultimas = await _context.SolicitudesDeAyuda
                 .Where(s => (s.Estado == "EnProceso" || s.Estado == "Finalizada") && s.IsActive)
                 .Include(s => s.Estudiante)
                 .Include(s => s.Ofertas)
-                .OrderByDescending(s => s.ModifiedAt)
-                .Take(10)
+                .OrderByDescending(s => s.ModifiedAt) // Ordenamos por fecha de cierre/aceptación
+                .Skip((page - 1) * pageSize)          // Saltamos los anteriores
+                .Take(pageSize)                       // Tomamos solo los que tocan
                 .ToListAsync();
 
             var listaDtos = ultimas.Select(s => {

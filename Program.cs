@@ -8,8 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
-// Ya no necesitas los usings de Kestrel o Http.Features si no configuras límites
-
+ 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. Configurar CORS (Permitir conexiones desde React) ---

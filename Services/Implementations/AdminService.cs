@@ -114,7 +114,6 @@ namespace Asesorias_API_MVC.Services.Implementations
         public async Task<IEnumerable<AsesorRatingDto>> GetAsesorDashboardAsync()
         {
             // 1. TRAER LISTA BASE DE ASESORES Y SUS INGRESOS DE CURSOS (SQL Server + Postgres Linked)
-            // Nota: Quitamos los cálculos de rating de aquí para no confundirnos
             var query = @"
                 SELECT
                     a.UsuarioId AS AsesorId,
@@ -155,9 +154,6 @@ namespace Asesorias_API_MVC.Services.Implementations
                 .ToListAsync();
 
             // 2. OBTENER RATING GLOBAL REAL (PostgreSQL - EF Core)
-            // Consultamos directo la tabla Calificaciones agrupando por AsesorId.
-            // Esto incluye Cursos (donde AsesorId se llenó) y Asesorías (donde AsesorId se llenó).
-            // ¡Es el promedio universal!
             var ratingsReales = await _analyticsDb.Calificaciones
                 .GroupBy(c => c.AsesorId)
                 .Select(g => new {
@@ -236,6 +232,7 @@ namespace Asesorias_API_MVC.Services.Implementations
             return resultado;
         }
 
+        // --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE: AsSplitQuery() ---
         public async Task<AsesorDetailFullDto> GetAsesorDetailsAsync(int asesorId)
         {
             var asesor = await _context.Asesores
@@ -243,6 +240,7 @@ namespace Asesorias_API_MVC.Services.Implementations
                 .Include(a => a.Cursos).ThenInclude(c => c.Inscripciones)
                 .Include(a => a.SolicitudesAtendidas).ThenInclude(s => s.Estudiante)
                 .Include(a => a.SolicitudesAtendidas).ThenInclude(s => s.Ofertas)
+                .AsSplitQuery() // <--- ESTO OPTIMIZA LA CONSULTA Y EVITA LA LENTITUD
                 .FirstOrDefaultAsync(a => a.UsuarioId == asesorId);
 
             if (asesor == null) return null!;
@@ -266,15 +264,10 @@ namespace Asesorias_API_MVC.Services.Implementations
             // 3. Rating Global
             var rating = 0.0;
 
-            // Buscamos calificaciones por AsesorId (si implementaste ese cambio) o por cursos
-            // Asumiendo que tienes el campo AsesorId en Calificaciones:
             var ratingsQuery = await _analyticsDb.Calificaciones
                  .Where(c => c.AsesorId == asesorId)
                  .Select(c => c.Rating)
                  .ToListAsync();
-
-            // Si no tienes el campo AsesorId aún, usa el de cursos:
-            // var ratingsQuery = await _analyticsDb.Calificaciones.Where(c => cursoIds.Contains(c.CursoId.GetValueOrDefault())).Select(c => c.Rating).ToListAsync();
 
             if (ratingsQuery.Any()) rating = ratingsQuery.Average();
 
@@ -329,9 +322,9 @@ namespace Asesorias_API_MVC.Services.Implementations
                 .Where(s => (s.Estado == "EnProceso" || s.Estado == "Finalizada") && s.IsActive)
                 .Include(s => s.Estudiante)
                 .Include(s => s.Ofertas)
-                .OrderByDescending(s => s.ModifiedAt) // Ordenamos por fecha de cierre/aceptación
-                .Skip((page - 1) * pageSize)          // Saltamos los anteriores
-                .Take(pageSize)                       // Tomamos solo los que tocan
+                .OrderByDescending(s => s.ModifiedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             var listaDtos = ultimas.Select(s => {

@@ -28,13 +28,22 @@ builder.Services.AddCors(options =>
 // SQL Server (Datos principales)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        // AUMENTAR TIMEOUT A 3 MINUTOS (180 segundos)
+        sqlOptions.CommandTimeout(180);
+        // Reintentar si falla la conexión momentáneamente
+        sqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+    }));
 
-// PostgreSQL (Analíticas)
+// B. PostgreSQL (Analíticas)
 var analyticsConnectionString = builder.Configuration.GetConnectionString("AnalyticsConnection");
 builder.Services.AddDbContext<AnalyticsDbContext>(options =>
-    options.UseNpgsql(analyticsConnectionString));
-
+    options.UseNpgsql(analyticsConnectionString, npgsqlOptions =>
+    {
+        // AUMENTAR TIMEOUT A 3 MINUTOS TAMBIÉN AQUÍ
+        npgsqlOptions.CommandTimeout(180);
+    }));
 // --- 3. Configurar Identity (Usuarios y Roles) ---
 builder.Services.AddIdentity<Usuario, IdentityRole<int>>(options =>
 {
